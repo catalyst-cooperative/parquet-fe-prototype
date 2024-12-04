@@ -7,7 +7,7 @@ const {
 
 async function build() {
     await esbuild.build({
-        entryPoints: ["src/index.js"],
+        entryPoints: ["src/index.ts"],
         plugins: [PerspectiveEsbuildPlugin()],
         outdir: "dist",
         format: "esm",
