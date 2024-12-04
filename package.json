@@ -1,0 +1,22 @@
+{
+    "name": "parquet-fe",
+    "private": true,
+    "version": "3.1.8",
+    "description": "prototype looking at parquet files only from browser",
+    "scripts": {
+        "build": "node build.js",
+        "start": "npm run build && http-server dist"
+    },
+    "keywords": [],
+    "dependencies": {
+        "@finos/perspective": "^3.1.8",
+        "@finos/perspective-viewer": "^3.1.8",
+        "@finos/perspective-viewer-d3fc": "^3.1.8",
+        "@finos/perspective-viewer-datagrid": "^3.1.8"
+    },
+    "devDependencies": {
+        "@finos/perspective-esbuild-plugin": "^3.1.8",
+        "esbuild": "0.24.0",
+        "http-server": "^14.1.1"
+    }
+}
