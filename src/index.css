@@ -1,7 +1,15 @@
- perspective-viewer { 
-   position: absolute; 
-   top: 0; 
-   left: 0; 
-   right: 0; 
-   bottom: 0; 
-  }
+.preview-container {
+  display: flex;
+  flex-direction: row;
+  width: 80%;
+  height: 100%;
+}
+
+.data-docs {
+  width: 20em;
+}
+
+perspective-viewer { 
+  width: 100em;
+  height: 100em;
+}
