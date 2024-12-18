@@ -9,7 +9,19 @@
 <body>
     
 <div class="header">
-    <h1>:3 PUDL</h1>
+    <div class="logo">
+        <h1>:3 PUDL</h1>
+    </div>
+    <div class="navbar">
+        <ul>
+            <li>
+                FAQ
+            </li>
+            <li>
+                infrequently asked questions
+            </li>
+        </ul>
+    </div>
 </div>
 
 <div class="main-content">
@@ -21,6 +33,7 @@
         hx-get="/search"
         hx-trigger="input changed delay:300ms"
         hx-target="#search-results"
+        hx-replace-url="true"
         placeholder="Search..."
     />
     <div class="data-dictionary" id="search-results">
@@ -28,8 +41,10 @@
     </div>
     </div>
     <div class="preview-panel">
-        <h2 id="table-name">{{ table }}</h1>
-        <button id="csv-download">Download as CSV</button>
+        <div class="preview-header">
+            <h2 id="table-name">{{ table }}</h2>
+            <button id="csv-download">Download as CSV</button>
+        </div>
         <div class="data-table">
             <perspective-viewer></perspective-viewer>
         </div>
