@@ -1,7 +1,6 @@
 {% for r in resources %}
 <div class="resource">
-  <h2>{{r.name}}</h2>
-  <a href="/preview/{{r.name}}">preview</a>
+  <h2>{{r.name}} <button class="preview-btn" onclick="initializePreview('{{ r.name }}')">preview >></span></h2>
   {{r.description | safe}}
   <h3>Columns</h3>
   <table>

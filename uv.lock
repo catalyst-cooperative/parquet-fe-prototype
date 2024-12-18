@@ -108,6 +108,18 @@ wheels = [
 ]
 
 [[package]]
+name = "flask-htmx"
+version = "0.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "flask" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4a/b7/1ba8b722ccc12b72b44af949f438a85111ba8db9e39f973dff4a47da068e/flask_htmx-0.4.0.tar.gz", hash = "sha256:2d367fb27c8da99d031a0c566b7e562637139722e2d4e8ec67c7f941addb22fd", size = 5815 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3d/8e/7e75c2210567ba11df9ea7d031eb5b8f45e82f6112cc8be885cb0ce86c7d/flask_htmx-0.4.0-py3-none-any.whl", hash = "sha256:ac0ef976638bc635537a47c4ae622c91aef1e69d8bf52880aa9ae0db089ce7d2", size = 6773 },
+]
+
+[[package]]
 name = "frictionless"
 version = "5.18.0"
 source = { registry = "https://pypi.org/simple" }
@@ -277,6 +289,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "flask" },
+    { name = "flask-htmx" },
     { name = "frictionless" },
     { name = "pyyaml" },
     { name = "whoosh" },
@@ -285,6 +298,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "flask", specifier = ">=3.1.0" },
+    { name = "flask-htmx", specifier = ">=0.4.0" },
     { name = "frictionless", specifier = ">=5.18.0" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "whoosh", specifier = ">=2.7.4" },

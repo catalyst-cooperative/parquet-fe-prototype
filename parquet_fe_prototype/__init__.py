@@ -3,27 +3,33 @@ import yaml
 from pathlib import Path
 
 from flask import Flask, request, render_template
+from flask_htmx import HTMX
 
 from parquet_fe_prototype import datapackage_shim
 
 
 def create_app():
     app = Flask("parquet_fe_prototype", instance_relative_config=True)
+    htmx = HTMX()
+    htmx.init_app(app)
+
     app.config.from_mapping(SECRET_KEY="dev")
     metadata_path = Path(app.root_path) / "internal" / "metadata.yml"
     with open(metadata_path) as f:
         datapackage = datapackage_shim.metadata_to_datapackage(yaml.safe_load(f))
 
-    @app.get("/search", defaults={"query": None})
-    @app.get("/search/<query>")
-    def search(query):
-        if query:
+    @app.get("/search")
+    def search():
+        if htmx:
+            template = "partials/search_results.html"
+        else:
+            template = "search.html"
+        if query := request.args.get("q"):
             resources = [resource for resource in datapackage.resources if query in resource.name]
-            return render_template("search.html", resources=resources)
-        # TODO: think about how to htmxify
-        # if htmx: only render the inside.
-        # otherwise: render the outside too.
-        return render_template("search.html", resources=datapackage.resources)
+        else:
+            resources = datapackage.resources
+            
+        return render_template(template, resources=resources)
 
     @app.get("/preview/<table>")
     def preview(table: str):

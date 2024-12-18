@@ -48,11 +48,6 @@ async function initializeDuckDB(): Promise<duckdb.AsyncDuckDB> {
   return db;
 }
 
-function getTableNameFromHeader() {
-  const maybeTableName = document.getElementById("table-name");
-  return maybeTableName ? maybeTableName.innerText : "";
-}
-
 async function addTableToDuckDB(db: duckdb.AsyncDuckDB, tableName: string) {
   const baseUrl = "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/stable/"
   const filename = `${tableName}.parquet`;
@@ -103,8 +98,10 @@ async function _getTableDataForViewer(
   return newData;
 }
 
-async function initializePreview() {
-  tableName = getTableNameFromHeader();
+async function initializePreview(name: string) {
+  tableName = name;
+  document.getElementsByClassName("preview-panel")[0].style.display = "block";
+  document.getElementById("table-name").innerHTML = tableName;
   await addTableToDuckDB(db, tableName);
   const viewer = document.getElementsByTagName("perspective-viewer")[0];
   const tableData = await getInitialTableData(tableName, c);
@@ -112,7 +109,7 @@ async function initializePreview() {
   viewer.load(table);
 }
 
-globalThis.initializePreview = initializePreview();
+globalThis.initializePreview = initializePreview;
 
 async function reapplyFilters() {
   window.clearTimeout(timeout);

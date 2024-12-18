@@ -20,6 +20,7 @@ perspective-viewer {
 
 .preview-panel {
   flex: 1;
+  display: none;
 }
 
 .preview-panel[style*="display: none"] ~ .search-panel {

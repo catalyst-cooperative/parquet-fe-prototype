@@ -1,5 +1,6 @@
 <!doctype html>
 <head>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script type="module" src="{{ url_for('static', filename='index.js') }}"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}" />
 </head>
@@ -13,8 +14,16 @@
 
 <div class="main-content">
     <div class="search-panel">
-    <input class="search-box" type="text" />
-    <div class="data-dictionary">
+    <input
+        class="search-box"
+        type="text"
+        name="q"
+        hx-get="/search"
+        hx-trigger="input changed delay:300ms"
+        hx-target="#search-results"
+        placeholder="Search..."
+    />
+    <div class="data-dictionary" id="search-results">
         {% include 'partials/search_results.html' %}
     </div>
     </div>
