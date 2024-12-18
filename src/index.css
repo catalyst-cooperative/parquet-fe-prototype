@@ -1,15 +1,27 @@
-.preview-container {
-  display: flex;
-  flex-direction: row;
-  width: 80%;
-  height: 100%;
+body {
+  box-sizing: border-box;
 }
-
-.data-docs {
-  width: 20em;
-}
-
 perspective-viewer { 
-  width: 100em;
-  height: 100em;
+  min-width: 20em;
+  height: 80em;
+}
+
+.main-content {
+  display: flex;
+  justify-content: center;
+}
+
+.search-panel {
+  flex: 0 1 40em;
+  min-width: 20em;
+  height: 80em;
+  overflow-y: scroll;
+}
+
+.preview-panel {
+  flex: 1;
+}
+
+.preview-panel[style*="display: none"] ~ .search-panel {
+  flex: 0 1 120em;
 }

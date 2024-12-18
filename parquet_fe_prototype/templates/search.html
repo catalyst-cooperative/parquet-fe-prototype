@@ -1,0 +1,29 @@
+<!doctype html>
+<head>
+  <script type="module" src="{{ url_for('static', filename='index.js') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}" />
+</head>
+<title>PUDL Data Dictionary</title>
+
+<body>
+    
+<div class="header">
+    <h1>:3 PUDL</h1>
+</div>
+
+<div class="main-content">
+    <div class="search-panel">
+    <input class="search-box" type="text" />
+    <div class="data-dictionary">
+        {% include 'partials/search_results.html' %}
+    </div>
+    </div>
+    <div class="preview-panel">
+        <h2 id="table-name">{{ table }}</h1>
+        <button id="csv-download">Download as CSV</button>
+        <div class="data-table">
+            <perspective-viewer></perspective-viewer>
+        </div>
+    </div>
+</div>
+</body>

@@ -1,0 +1,20 @@
+{% for r in resources %}
+<div class="resource">
+  <h2>{{r.name}}</h2>
+  <a href="/preview/{{r.name}}">preview</a>
+  {{r.description | safe}}
+  <h3>Columns</h3>
+  <table>
+  {% for f in r.schema.fields %}
+    <tr>
+      <td>
+        <strong>{{ f.name }}</strong>
+      </td>
+      <td>
+        {{ f.description }}
+      </td>
+    </tr>
+  {% endfor %}
+</table>
+</div>
+{% endfor %}

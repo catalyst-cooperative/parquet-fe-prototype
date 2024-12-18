@@ -9,6 +9,25 @@ import "@finos/perspective-viewer/dist/css/pro-dark.css";
 import "./index.css";
 import { PerspectiveViewerElement } from '@finos/perspective-viewer/dist/pkg/perspective-viewer';
 
+interface FilterRule {
+  filter: [string, string, string];
+  type: string;
+}
+
+
+const db = await initializeDuckDB();
+const c = await db.connect();
+const perspectiveWorker = await perspective.worker();
+const viewer = document.getElementsByTagName("perspective-viewer")[0];
+
+let table;
+let tableName: string;
+let timeout: number;
+
+viewer.addEventListener("perspective-config-update", reapplyFilters);
+
+const downloader = document.getElementById("csv-download") as HTMLButtonElement;
+downloader.onclick = downloadAsCsv;
 
 async function initializeDuckDB(): Promise<duckdb.AsyncDuckDB> {
   const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
@@ -43,7 +62,7 @@ async function addTableToDuckDB(db: duckdb.AsyncDuckDB, tableName: string) {
 
 async function getDuckDBQuery(
   { tableName, filter, forDownload = false }
-    : { tableName: string, filter: Array<Array<string>>, forDownload?: boolean }
+    : { tableName: string, filter: Array<FilterRule>, forDownload?: boolean }
 ) {
   const params = new URLSearchParams(
     { tableName, filter: JSON.stringify(filter), forDownload: JSON.stringify(forDownload) }
@@ -53,20 +72,62 @@ async function getDuckDBQuery(
   return query
 }
 
-async function getTableDataForViewer(
+async function getInitialTableData(
+  tableName: string, c: duckdb.AsyncDuckDBConnection
+): Promise<arrow.Table> {
+  const query = await getDuckDBQuery({ tableName, filter: [], forDownload: false });
+  return await c.query(query);
+}
+
+
+async function _getTableDataForViewer(
   tableName: string, viewer: PerspectiveViewerElement, c: duckdb.AsyncDuckDBConnection, forDownload: boolean = false
 ): Promise<arrow.Table> {
   const { filter: rawFilter } = await viewer.save();
-  const filter = rawFilter.filter((e: Array<string>) => e[2]);
+  const filter = rawFilter.filter((e: Array<string>) => e[2] !== null);
+  console.log("filter ", filter);
+  const schema = await table.schema();
+  const filterRules = filter.map(
+    ([col, op, val]: [string, string, string]) => {
+      return { "filter": [col, op, val], "type": schema[col] };
+    }
+  );
 
   const filterVals = filter.map((e: Array<string>) => e[2]);
-  const query = await getDuckDBQuery({ tableName, filter, forDownload: forDownload });
+  const query = await getDuckDBQuery({ tableName, filter: filterRules, forDownload: forDownload });
   const stmt = await c.prepare(query);
   console.log("query ", query);
   console.log("filtervals ", filterVals);
   const newData = await stmt.query(...filterVals);
   console.log(`got ${newData.numRows} rows of data`);
   return newData;
+}
+
+async function initializePreview() {
+  tableName = getTableNameFromHeader();
+  await addTableToDuckDB(db, tableName);
+  const viewer = document.getElementsByTagName("perspective-viewer")[0];
+  const tableData = await getInitialTableData(tableName, c);
+  table = await perspectiveWorker.table(arrow.tableToIPC(tableData));
+  viewer.load(table);
+}
+
+globalThis.initializePreview = initializePreview();
+
+async function reapplyFilters() {
+  window.clearTimeout(timeout);
+  const debounceMs = 300;
+  timeout = window.setTimeout(async () => {
+    const newData = await _getTableDataForViewer(tableName, viewer, c);
+    table.replace(arrow.tableToIPC(newData));
+  }, debounceMs);
+};
+
+async function downloadAsCsv() {
+  const newData = await _getTableDataForViewer(tableName, viewer, c, true);
+  // TODO 2024-12-16: make this go faster or non-blocking. worker-ify it probably? but maybe just async it.
+  const blob = arrowToCsv(newData);
+  downloadBlob(blob);
 }
 
 function arrowToCsv(table: arrow.Table): Blob {
@@ -88,44 +149,3 @@ function downloadBlob(blob: Blob) {
   link.click();
   URL.revokeObjectURL(url);
 }
-
-const db = await initializeDuckDB();
-const c = await db.connect();
-const tableName = getTableNameFromHeader();
-await addTableToDuckDB(db, tableName);
-
-const viewer = document.getElementsByTagName("perspective-viewer")[0];
-
-// if there's no schema yet, what do we do?
-// could rely on there being no filter.
-// could also pre-fetch the schema.
-const tableData = await getTableDataForViewer(tableName, viewer, c);
-
-const pworker = await perspective.worker();
-const table = await pworker.table(arrow.tableToIPC(tableData));
-
-
-viewer.load(table);
-
-const schema = await table.schema();
-console.log(schema)
-
-let timeout: number;
-viewer.addEventListener("perspective-config-update", async (event) => {
-  const runQuery = async () => {
-    const newData = await getTableDataForViewer(tableName, viewer, c);
-    table.replace(arrow.tableToIPC(newData));
-  }
-
-  window.clearTimeout(timeout);
-  const debounceMs = 300;
-  timeout = window.setTimeout(async () => await runQuery(), debounceMs);
-});
-
-const downloader = document.getElementById("csv-download") as HTMLButtonElement;
-downloader.onclick = async () => {
-  const newData = await getTableDataForViewer(tableName, viewer, c, true);
-  // TODO 2024-12-16: make this go faster or non-blocking. worker-ify it probably? but maybe just async it.
-  const blob = arrowToCsv(newData)
-  downloadBlob(blob);
-};
