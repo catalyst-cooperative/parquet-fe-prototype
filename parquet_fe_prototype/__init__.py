@@ -6,6 +6,7 @@ from flask import Flask, request, render_template
 from flask_htmx import HTMX
 
 from parquet_fe_prototype import datapackage_shim
+from parquet_fe_prototype.search import initialize_index, run_search
 
 
 def create_app():
@@ -17,23 +18,19 @@ def create_app():
     metadata_path = Path(app.root_path) / "internal" / "metadata.yml"
     with open(metadata_path) as f:
         datapackage = datapackage_shim.metadata_to_datapackage(yaml.safe_load(f))
+        
+    # index = initialize_index(datapackage)
 
     @app.get("/search")
     def search():
-        if htmx:
-            template = "partials/search_results.html"
-        else:
-            template = "search.html"
+        template = "partials/search_results.html" if htmx else "search.html"
         if query := request.args.get("q"):
+            # resources = run_search(ix=index, raw_query=query)
             resources = [resource for resource in datapackage.resources if query in resource.name]
         else:
             resources = datapackage.resources
             
         return render_template(template, resources=resources)
-
-    @app.get("/preview/<table>")
-    def preview(table: str):
-        return render_template("preview.html", table=table)
 
     def build_query_with_filters(table_name, filter):
         query = f"SELECT * FROM {table_name} WHERE "
@@ -73,11 +70,8 @@ def create_app():
 
     @app.get("/api/duckdb")
     def duckdb_query():
-        base_url = "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/stable/"
         filename = f"{request.args.get("tableName")}.parquet"
-        # actually return the filename and url also so that we can register that in duckdb
         filter_json = request.args.get("filter", "[]")
-        # get the schema and use it to create filters
         filter = json.loads(filter_json)
         query = build_query_with_filters(
             table_name=filename,
