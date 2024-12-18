@@ -22,7 +22,7 @@ Run the server:
 uv run flask --app parquet_fe_prototype run --debug
 ```
 
-and then go to `localhost:5000`.
+and then go to `localhost:5000/search`.
 
 
 ## TODOs?
