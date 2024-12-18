@@ -1,53 +1,48 @@
-<!doctype html>
+<!DOCTYPE html>
 <head>
-  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-  <script type="module" src="{{ url_for('static', filename='index.js') }}"></script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script type="module" src="{{ url_for('static', filename='index.js') }}"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}" />
 </head>
 <title>PUDL Data Dictionary</title>
 
 <body>
     
-<div class="header">
-    <div class="logo">
-        <h1>:3 PUDL</h1>
+<div class="full-app is-flex is-flex-direction-column">
+<nav class="navbar">
+    <div class="navbar-brand">
+        <h1 class="title my-auto pl-2">:3 PUDL</h1>
     </div>
-    <div class="navbar">
-        <ul>
-            <li>
-                FAQ
-            </li>
-            <li>
-                infrequently asked questions
-            </li>
-        </ul>
-    </div>
-</div>
+</nav>
 
-<div class="main-content">
-    <div class="search-panel">
-    <input
-        class="search-box"
-        type="text"
-        name="q"
-        hx-get="/search"
-        hx-trigger="input changed delay:300ms"
-        hx-target="#search-results"
-        hx-replace-url="true"
-        placeholder="Search..."
-    />
-    <div class="data-dictionary" id="search-results">
-        {% include 'partials/search_results.html' %}
+<div class="columns container is-fluid is-flex-grow-1">
+    <div class="data-dictionary column my-3">
+        <input
+            class="input is-medium"
+            type="text"
+            name="q"
+            hx-get="/search"
+            hx-trigger="input changed delay:300ms"
+            hx-target="#search-results"
+            hx-replace-url="true"
+            placeholder="Search..."
+        />
+        <div class="data-dictionary" id="search-results">
+            {% include 'partials/search_results.html' %}
+        </div>
     </div>
-    </div>
-    <div class="preview-panel">
-        <div class="preview-header">
-            <h2 id="table-name">{{ table }}</h2>
-            <button id="csv-download">Download as CSV</button>
+    <div class="preview-panel column is-two-thirds">
+        <div class="level">
+            <h2 id="table-name" class="title is-4 level-left my-auto">{{ table }}</h2>
+            <button class="button level-right is-primary" id="csv-download">Download as CSV</button>
         </div>
         <div class="data-table">
             <perspective-viewer></perspective-viewer>
         </div>
     </div>
+</div>
 </div>
 </body>

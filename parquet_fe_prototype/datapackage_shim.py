@@ -20,7 +20,7 @@ def table_to_resource(name, table) -> Resource:
         description=table["description_html"],
         schema=Schema(
             fields=[
-                Field(name=colname, description=desc)
+                Field(name=colname, description=desc.strip().strip('"'))
                 for colname, desc in table["columns"].items()
             ]
         ),

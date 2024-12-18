@@ -1,28 +1,29 @@
-body {
-  box-sizing: border-box;
-}
 perspective-viewer { 
-  min-width: 20em;
-  height: 80em;
+  height: calc(100vh - 9rem);
 }
 
-.main-content {
-  display: flex;
-  justify-content: center;
+.full-app {
+  height: 100vh;
 }
 
-.search-panel {
-  flex: 0 1 40em;
-  min-width: 20em;
-  height: 80em;
+.navbar {
+  height: 3rem;
+}
+
+.data-dictionary {
+  max-height: calc(100vh - 5.5rem);
   overflow-y: scroll;
 }
 
 .preview-panel {
-  flex: 1;
   display: none;
 }
 
-.preview-panel[style*="display: none"] ~ .search-panel {
-  flex: 0 1 120em;
+table {
+  table-layout: fixed;
+}
+
+.field-name {
+  max-width: 40%;
+  overflow: wrap;
 }

@@ -101,10 +101,13 @@ async function _getTableDataForViewer(
 async function initializePreview(name: string) {
   tableName = name;
   document.getElementsByClassName("preview-panel")[0].style.display = "block";
-  document.getElementById("table-name").innerHTML = tableName;
+  document.getElementById("table-name").innerHTML = "loading...";
+  downloader.disabled = true;
   await addTableToDuckDB(db, tableName);
   const viewer = document.getElementsByTagName("perspective-viewer")[0];
   const tableData = await getInitialTableData(tableName, c);
+  document.getElementById("table-name").innerHTML = tableName;
+  downloader.disabled = false;
   table = await perspectiveWorker.table(arrow.tableToIPC(tableData));
   viewer.load(table);
 }
