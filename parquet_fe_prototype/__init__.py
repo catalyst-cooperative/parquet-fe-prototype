@@ -19,14 +19,13 @@ def create_app():
     with open(metadata_path) as f:
         datapackage = datapackage_shim.metadata_to_datapackage(yaml.safe_load(f))
         
-    # index = initialize_index(datapackage)
+    index = initialize_index(datapackage)
 
     @app.get("/search")
     def search():
         template = "partials/search_results.html" if htmx else "search.html"
         if query := request.args.get("q"):
-            # resources = run_search(ix=index, raw_query=query)
-            resources = [resource for resource in datapackage.resources if query in resource.name]
+            resources = run_search(ix=index, raw_query=query)
         else:
             resources = datapackage.resources
             

@@ -32,6 +32,7 @@ and then go to `localhost:5000`.
 * tests
 * types - for metadata, for filters
 * tags
+* update URL when search is searched
 * add full-count row counter in preview
 * make CSV export go faster
 * add loading indicators
