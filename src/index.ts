@@ -6,6 +6,7 @@ import "@finos/perspective-viewer-datagrid";
 import "@finos/perspective-viewer-d3fc";
 
 import "@finos/perspective-viewer/dist/css/pro-dark.css";
+import "@finos/perspective-viewer/dist/css/pro.css";
 import "./index.css";
 import { PerspectiveViewerElement } from '@finos/perspective-viewer/dist/pkg/perspective-viewer';
 
@@ -14,6 +15,7 @@ interface FilterRule {
   type: string;
 }
 
+globalThis.initializePreview = initializePreview;
 
 const db = await initializeDuckDB();
 const c = await db.connect();
@@ -24,10 +26,19 @@ let table;
 let tableName: string;
 let timeout: number;
 
+const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
 viewer.addEventListener("perspective-config-update", reapplyFilters);
 
 const downloader = document.getElementById("csv-download") as HTMLButtonElement;
 downloader.onclick = downloadAsCsv;
+
+darkModeQuery.addEventListener('change', switchTheme);
+
+function switchTheme(query) {
+  const theme = query.matches ? 'Pro Dark' : 'Pro';
+  console.log("switching theme to", theme)
+  viewer.restore({ theme });
+}
 
 async function initializeDuckDB(): Promise<duckdb.AsyncDuckDB> {
   const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
@@ -109,10 +120,10 @@ async function initializePreview(name: string) {
   document.getElementById("table-name").innerHTML = tableName;
   downloader.disabled = false;
   table = await perspectiveWorker.table(arrow.tableToIPC(tableData, "file"));
-  viewer.load(table);
+  await viewer.load(table);
+  switchTheme(darkModeQuery);
 }
 
-globalThis.initializePreview = initializePreview;
 
 async function reapplyFilters() {
   window.clearTimeout(timeout);
