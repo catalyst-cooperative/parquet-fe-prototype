@@ -51,7 +51,7 @@ async function initializeDuckDB(): Promise<duckdb.AsyncDuckDB> {
 }
 
 async function addTableToDuckDB(db: duckdb.AsyncDuckDB, tableName: string) {
-  const baseUrl = "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/stable/"
+  const baseUrl = "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/"
   const filename = `${tableName}.parquet`;
   const url = `${baseUrl}${filename}`;
   await db.registerFileURL(filename, url, duckdb.DuckDBDataProtocol.HTTP, false);
