@@ -3,8 +3,9 @@
   <div class="level">
     <h2 class="title is-4 level-left">{{r.name}}</h2>
   </div>
-  <div class="level">
-    <button class="button level-left" onclick="initializePreview('{{ r.name }}')">preview >></button>
+  <div class="mb-3">
+    <button class="button is-primary" onclick="initializePreview('{{ r.name }}')">Preview</button>
+    <a class="button is-link is-light" href="https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/{{ r.name }}.parquet">Download full table as Parquet</a>
   </div>
   <div class="level">
     {{r.description | safe}}

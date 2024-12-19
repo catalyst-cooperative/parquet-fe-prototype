@@ -108,7 +108,7 @@ async function initializePreview(name: string) {
   const tableData = await getInitialTableData(tableName, c);
   document.getElementById("table-name").innerHTML = tableName;
   downloader.disabled = false;
-  table = await perspectiveWorker.table(arrow.tableToIPC(tableData));
+  table = await perspectiveWorker.table(arrow.tableToIPC(tableData, "file"));
   viewer.load(table);
 }
 
@@ -119,7 +119,7 @@ async function reapplyFilters() {
   const debounceMs = 300;
   timeout = window.setTimeout(async () => {
     const newData = await _getTableDataForViewer(tableName, viewer, c);
-    table.replace(arrow.tableToIPC(newData));
+    table.replace(arrow.tableToIPC(newData, "file"));
   }, debounceMs);
 };
 
