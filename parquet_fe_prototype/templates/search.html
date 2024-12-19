@@ -14,8 +14,25 @@
 <div class="full-app is-flex is-flex-direction-column">
 <nav class="navbar">
     <div class="navbar-brand">
-        <h1 class="title my-auto pl-2">:3 PUDL</h1>
+        <h1 class="title my-auto px-2">:3 PUDL</h1>
     </div>
+  <div class="navbar-menu">
+    <div class="navbar-start">
+      <a class="navbar-item">
+        FAQ
+      </a>
+
+      <a class="navbar-item">
+        Data source documentation
+      </a>
+    </div>
+
+    <div class="navbar-end">
+      <a class="navbar-item">
+        Log in
+      </a>
+    </div>
+  </div>
 </nav>
 
 <div class="columns container is-fluid is-flex-grow-1">
@@ -40,7 +57,9 @@
             <button class="button level-right is-primary" id="csv-download">Download as CSV</button>
         </div>
         <div class="data-table">
-            <perspective-viewer theme="Pro"></perspective-viewer>
+            <perspective-viewer
+                settings="true"
+            ></perspective-viewer>
         </div>
     </div>
 </div>
