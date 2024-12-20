@@ -24,12 +24,13 @@ def create_app():
     @app.get("/search")
     def search():
         template = "partials/search_results.html" if htmx else "search.html"
-        if query := request.args.get("q"):
+        query = request.args.get("q")
+        if query:
             resources = run_search(ix=index, raw_query=query)
         else:
             resources = datapackage.resources
             
-        return render_template(template, resources=resources)
+        return render_template(template, resources=resources, query=query)
 
     def build_query_with_filters(table_name, filter):
         query = f"SELECT * FROM {table_name} WHERE "
@@ -78,7 +79,7 @@ def create_app():
         )
         for_download = json.loads(request.args.get("forDownload"))
         if not for_download:
-            query += " LIMIT 1000"
+            query += " LIMIT 10000"
         print(f"{query=}")
         return query
 

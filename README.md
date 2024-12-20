@@ -27,16 +27,13 @@ and then go to `localhost:5000/search`.
 
 ## TODOs?
 
-* make the filters -> duckdb converter actually work good
-* fix rendering issue??
 * tests
+* make the filters -> duckdb converter actually work good
+* autosuggest
 * types - for metadata, for filters
 * tags
 * update URL when search is searched
 * add full-count row counter in preview
 * make CSV export go faster
-* add loading indicators
 * remove export button in preview
-* theming look good
 * make header more useful - nav, FAQ, etc.
-* add download as parquet button

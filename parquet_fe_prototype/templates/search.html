@@ -46,6 +46,7 @@
             hx-target="#search-results"
             hx-replace-url="true"
             placeholder="Search..."
+            {% if query %}value="{{ query }}"{% endif %}
         />
         <div class="data-dictionary" id="search-results">
             {% include 'partials/search_results.html' %}
