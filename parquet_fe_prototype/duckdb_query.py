@@ -35,6 +35,9 @@ def perspective_to_duckdb(perspective_filters: PerspectiveFilters):
 
     op_conversion_templates = {
         "==": "{col} = {autoincrement_value}",
+        "begins with": "STARTS_WITH({col}, {autoincrement_value})",
+        "contains": "CONTAINS({col}, {autoincrement_value})",
+        "ends with": "ENDS_WITH({col}, {autoincrement_value})",
     }
 
     type_converters = {
