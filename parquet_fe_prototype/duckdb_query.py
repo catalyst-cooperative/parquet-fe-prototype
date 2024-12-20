@@ -41,8 +41,8 @@ def perspective_to_duckdb(perspective_filters: PerspectiveFilters):
     }
 
     type_converters = {
-        "date": "?::DATE",
-        "datetime": "?::TIMESTAMP",
+        "date": "make_timestamp((?::BIGINT) * 1000)",
+        "datetime": "make_timestamp((?::BIGINT) * 1000)",
         "number": "?::DOUBLE",
     }
 

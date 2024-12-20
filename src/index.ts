@@ -83,7 +83,6 @@ async function _getTableDataForViewer(
 ): Promise<arrow.Table> {
   const { filter: rawFilter } = await viewer.save();
   const filter = rawFilter.filter((e: Array<string>) => e[2] !== null);
-  console.log("filter ", filter);
   const schema = await table.schema();
   const filterRules = filter.map(
     ([col, op, val]: [string, string, string]) => {
@@ -91,6 +90,7 @@ async function _getTableDataForViewer(
     }
   );
 
+  console.log("filter rules ", filterRules);
   const filterVals = filter.map((e: Array<string>) => e[2]);
   const query = await getDuckDBQuery({ tableName, filter_rules: filterRules, forDownload: forDownload });
   const stmt = await c.prepare(query);
@@ -124,6 +124,7 @@ async function reapplyFilters() {
   const debounceMs = 300;
   timeout = window.setTimeout(async () => {
     const newData = await _getTableDataForViewer(tableName, viewer, c);
+    globalThis.data = newData;
     table.replace(arrow.tableToIPC(newData, "file"));
   }, debounceMs);
 };

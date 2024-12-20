@@ -48,7 +48,7 @@ TYPE_CONFIGS = {
         "operators": ["==", "!=", ">", ">=", "<", "<=", "is null", "is not null"],
     },
     "date": {
-        "value_strategy": st.dates().map(lambda dt: dt.isoformat()),
+        "value_strategy": st.dates().map(lambda d: datetime(d.year, d.month, d.day).timestamp()*1000),
         "operators": ["==", "!=", ">", ">=", "<", "<=", "is null", "is not null"],
     },
     "datetime": {
