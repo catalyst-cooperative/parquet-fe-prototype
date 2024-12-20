@@ -47,6 +47,7 @@ async function initializeDuckDB(): Promise<duckdb.AsyncDuckDB> {
   const db = new duckdb.AsyncDuckDB(logger, worker);
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
   URL.revokeObjectURL(worker_url);
+  [...document.getElementsByClassName("preview-button")].forEach((button) => button.disabled = false);
   return db;
 }
 
@@ -58,11 +59,11 @@ async function addTableToDuckDB(db: duckdb.AsyncDuckDB, tableName: string) {
 }
 
 async function getDuckDBQuery(
-  { tableName, filter, forDownload = false }
-    : { tableName: string, filter: Array<FilterRule>, forDownload?: boolean }
+  { tableName, filter_rules: filter_rules, forDownload = false }
+    : { tableName: string, filter_rules: Array<FilterRule>, forDownload?: boolean }
 ) {
   const params = new URLSearchParams(
-    { tableName, filter: JSON.stringify(filter), forDownload: JSON.stringify(forDownload) }
+    { perspective_filters: JSON.stringify({ tableName: `${tableName}.parquet`, filter_rules }), forDownload: JSON.stringify(forDownload) }
   );
   const resp = await fetch("/api/duckdb?" + params);
   const query = await resp.text();
@@ -72,7 +73,7 @@ async function getDuckDBQuery(
 async function getInitialTableData(
   tableName: string, c: duckdb.AsyncDuckDBConnection
 ): Promise<arrow.Table> {
-  const query = await getDuckDBQuery({ tableName, filter: [], forDownload: false });
+  const query = await getDuckDBQuery({ tableName, filter_rules: [], forDownload: false });
   return await c.query(query);
 }
 
@@ -91,7 +92,7 @@ async function _getTableDataForViewer(
   );
 
   const filterVals = filter.map((e: Array<string>) => e[2]);
-  const query = await getDuckDBQuery({ tableName, filter: filterRules, forDownload: forDownload });
+  const query = await getDuckDBQuery({ tableName, filter_rules: filterRules, forDownload: forDownload });
   const stmt = await c.prepare(query);
   console.log("query ", query);
   console.log("filtervals ", filterVals);
@@ -104,6 +105,8 @@ async function initializePreview(name: string) {
   tableName = name;
   document.getElementsByClassName("preview-panel")[0].style.display = "block";
   document.getElementById("table-name").innerHTML = "loading...";
+
+  const downloader = document.getElementById("csv-download") as HTMLButtonElement;
   downloader.disabled = true;
   await addTableToDuckDB(db, tableName);
   const viewer = document.getElementsByTagName("perspective-viewer")[0];

@@ -29,11 +29,10 @@ and then go to `localhost:5000/search`.
 
 * tests
 * make the filters -> duckdb converter actually work good
-* autosuggest
-* types - for metadata, for filters
-* tags
-* update URL when search is searched
 * add full-count row counter in preview
+* autosuggest
+* types - for filters
+* tags
 * make CSV export go faster
 * remove export button in preview
 * make header more useful - nav, FAQ, etc.
