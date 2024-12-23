@@ -16,8 +16,10 @@ interface FilterRule {
 
 globalThis.initializePreview = initializePreview;
 
+let duckDBInitialized = false;
 const db = await initializeDuckDB();
 const c = await db.connect();
+globalThis.c = c;
 const perspectiveWorker = await perspective.worker();
 const viewer = document.getElementsByTagName("perspective-viewer")[0];
 
@@ -47,7 +49,7 @@ async function initializeDuckDB(): Promise<duckdb.AsyncDuckDB> {
   const db = new duckdb.AsyncDuckDB(logger, worker);
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
   URL.revokeObjectURL(worker_url);
-  [...document.getElementsByClassName("preview-button")].forEach((button) => button.disabled = false);
+  duckDBInitialized = true;
   return db;
 }
 
@@ -61,20 +63,21 @@ async function addTableToDuckDB(db: duckdb.AsyncDuckDB, tableName: string) {
 async function getDuckDBQuery(
   { tableName, filter_rules: filter_rules, forDownload = false }
     : { tableName: string, filter_rules: Array<FilterRule>, forDownload?: boolean }
-) {
+): Promise<{ statement: string, values: Array<any> }> {
   const params = new URLSearchParams(
     { perspective_filters: JSON.stringify({ tableName: `${tableName}.parquet`, filter_rules }), forDownload: JSON.stringify(forDownload) }
   );
   const resp = await fetch("/api/duckdb?" + params);
-  const query = await resp.text();
+  const query = await resp.json();
+  console.log("query", query);
   return query
 }
 
 async function getInitialTableData(
   tableName: string, c: duckdb.AsyncDuckDBConnection
 ): Promise<arrow.Table> {
-  const query = await getDuckDBQuery({ tableName, filter_rules: [], forDownload: false });
-  return await c.query(query);
+  const { statement } = await getDuckDBQuery({ tableName, filter_rules: [], forDownload: false });
+  return await c.query(statement);
 }
 
 
@@ -91,10 +94,9 @@ async function _getTableDataForViewer(
   );
 
   console.log("filter rules ", filterRules);
-  const filterVals = filter.map((e: Array<string>) => e[2]);
-  const query = await getDuckDBQuery({ tableName, filter_rules: filterRules, forDownload: forDownload });
-  const stmt = await c.prepare(query);
-  console.log("query ", query);
+  const { statement, values: filterVals } = await getDuckDBQuery({ tableName, filter_rules: filterRules, forDownload: forDownload });
+  const stmt = await c.prepare(statement);
+  console.log("query ", statement);
   console.log("filtervals ", filterVals);
   const newData = await stmt.query(...filterVals);
   console.log(`got ${newData.numRows} rows of data`);
@@ -103,11 +105,15 @@ async function _getTableDataForViewer(
 
 async function initializePreview(name: string) {
   tableName = name;
+  globalThis.pq = `${tableName}.parquet`;
   document.getElementsByClassName("preview-panel")[0].style.display = "block";
   document.getElementById("table-name").innerHTML = "loading...";
 
   const downloader = document.getElementById("csv-download") as HTMLButtonElement;
   downloader.disabled = true;
+  if (!duckDBInitialized) {
+    window.setTimeout(() => initializePreview(name), 500);
+  }
   await addTableToDuckDB(db, tableName);
   const viewer = document.getElementsByTagName("perspective-viewer")[0];
   const tableData = await getInitialTableData(tableName, c);

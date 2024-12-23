@@ -1,5 +1,6 @@
 import json
 import yaml
+from dataclasses import asdict
 from pathlib import Path
 
 from flask import Flask, request, render_template
@@ -20,7 +21,7 @@ def create_app():
     metadata_path = Path(app.root_path) / "internal" / "metadata.yml"
     with open(metadata_path) as f:
         datapackage = datapackage_shim.metadata_to_datapackage(yaml.safe_load(f))
-        
+
     index = initialize_index(datapackage)
 
     @app.get("/search")
@@ -31,9 +32,8 @@ def create_app():
             resources = run_search(ix=index, raw_query=query)
         else:
             resources = datapackage.resources
-            
-        return render_template(template, resources=resources, query=query)
 
+        return render_template(template, resources=resources, query=query)
 
     @app.get("/api/duckdb")
     def duckdb():
@@ -42,7 +42,7 @@ def create_app():
         duckdb_query = perspective_to_duckdb(perspective_filters)
         for_download = json.loads(request.args.get("forDownload"))
         if not for_download:
-            duckdb_query += " LIMIT 10000"
-        return duckdb_query
+            duckdb_query.statement += " LIMIT 10000"
+        return asdict(duckdb_query)
 
     return app
