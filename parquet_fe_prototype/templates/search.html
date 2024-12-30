@@ -14,7 +14,7 @@
 <div class="full-app is-flex is-flex-direction-column">
 <nav class="navbar">
     <div class="navbar-brand">
-        <h1 class="title my-auto px-2">:3 PUDL</h1>
+        <h1 class="title my-auto px-2 logo"><a href="/">:3 PUDL</a></h1>
     </div>
   <div class="navbar-menu">
     <div class="navbar-start">
@@ -38,7 +38,7 @@
 <div class="columns container is-fluid is-flex-grow-1">
     <div class="data-dictionary column my-3">
         <input
-            class="input is-medium"
+            class="input is-medium block"
             type="text"
             name="q"
             hx-get="/search"
@@ -52,10 +52,15 @@
             {% include 'partials/search_results.html' %}
         </div>
     </div>
-    <div class="preview-panel column is-two-thirds" data-theme="dark">
+    <div class="preview-panel box column is-two-thirds" data-theme="dark">
         <div class="level">
-            <h2 id="table-name" class="title is-4 level-left my-auto">{{ table }}</h2>
-            <button class="button level-right is-primary" id="csv-download">Download as CSV</button>
+          <div class="level-left">
+            <h2 id="table-name" class="title is-4 level-item my-auto">{{ table }}</h2>
+          </div>
+          <div class="level-right">
+            <button class="button level-item is-primary" id="csv-download">Download as CSV</button>
+            <button class="delete level-item" onclick="document.getElementsByClassName('preview-panel')[0].style.display='none';"></button>
+          </div>
         </div>
         <div class="data-table">
             <perspective-viewer

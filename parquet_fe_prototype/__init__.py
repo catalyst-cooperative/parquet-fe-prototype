@@ -3,7 +3,7 @@ import yaml
 from dataclasses import asdict
 from pathlib import Path
 
-from flask import Flask, request, render_template
+from flask import Flask, redirect, request, render_template, url_for
 from flask_htmx import HTMX
 
 from parquet_fe_prototype import datapackage_shim
@@ -23,6 +23,10 @@ def create_app():
         datapackage = datapackage_shim.metadata_to_datapackage(yaml.safe_load(f))
 
     index = initialize_index(datapackage)
+
+    @app.get("/")
+    def home():
+        return redirect(url_for("search"))
 
     @app.get("/search")
     def search():
