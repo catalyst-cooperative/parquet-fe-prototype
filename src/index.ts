@@ -63,7 +63,7 @@ async function addTableToDuckDB(db: duckdb.AsyncDuckDB, tableName: string) {
 async function getDuckDBQuery(
   { tableName, filter_rules: filter_rules, forDownload = false }
     : { tableName: string, filter_rules: Array<FilterRule>, forDownload?: boolean }
-): Promise<{ statement: string, values: Array<any> }> {
+): Promise<{ statement: string, count_statement: string, values: Array<any> }> {
   const params = new URLSearchParams(
     { perspective_filters: JSON.stringify({ tableName: `${tableName}.parquet`, filter_rules }), forDownload: JSON.stringify(forDownload) }
   );
@@ -75,11 +75,37 @@ async function getDuckDBQuery(
 
 async function getInitialTableData(
   tableName: string, c: duckdb.AsyncDuckDBConnection
-): Promise<arrow.Table> {
-  const { statement } = await getDuckDBQuery({ tableName, filter_rules: [], forDownload: false });
-  return await c.query(statement);
+): Promise<Array<arrow.Table>> {
+  const { statement, count_statement: countStatement } = await getDuckDBQuery({ tableName, filter_rules: [], forDownload: false });
+  return await Promise.all([c.query(statement), c.query(countStatement)]);
 }
 
+
+async function resetCounters() {
+  const displayedRows = document.getElementById("displayed-rows");
+  const matchingRows = document.getElementById("matching-rows");
+  if (displayedRows !== null) {
+    displayedRows.innerText = "???";
+    displayedRows.className = "has-text-weight-bold";
+  }
+  if (matchingRows !== null) {
+    matchingRows.innerText = "???";
+    matchingRows.className = "has-text-weight-bold";
+  }
+}
+async function updateCounters(displayedRowCount: number, matchingRowCount: number) {
+  const displayedRows = document.getElementById("displayed-rows");
+  const matchingRows = document.getElementById("matching-rows");
+  const isIncompletePreview = matchingRowCount > displayedRowCount;
+  if (displayedRows !== null) {
+    displayedRows.innerText = `${displayedRowCount}`;
+    displayedRows.className = isIncompletePreview ? "has-text-weight-bold has-text-warning" : "has-text-weight-bold";
+  }
+  if (matchingRows !== null) {
+    matchingRows.innerText = `${matchingRowCount}`;
+    matchingRows.className = isIncompletePreview ? "has-text-weight-bold has-text-warning" : "has-text-weight-bold";
+  }
+}
 
 async function _getTableDataForViewer(
   tableName: string, viewer: PerspectiveViewerElement, c: duckdb.AsyncDuckDBConnection, forDownload: boolean = false
@@ -94,17 +120,20 @@ async function _getTableDataForViewer(
   );
 
   console.log("filter rules ", filterRules);
-  const { statement, values: filterVals } = await getDuckDBQuery({ tableName, filter_rules: filterRules, forDownload: forDownload });
+  const { statement, count_statement: countStatement, values: filterVals } = await getDuckDBQuery({ tableName, filter_rules: filterRules, forDownload: forDownload });
   const stmt = await c.prepare(statement);
-  console.log("query ", statement);
-  console.log("filtervals ", filterVals);
-  const newData = await stmt.query(...filterVals);
-  console.log(`got ${newData.numRows} rows of data`);
+  const counter = await c.prepare(countStatement);
+  const [countResult, newData] = await Promise.all(
+    [counter.query(...filterVals), stmt.query(...filterVals)]
+  );
+  const matchingRowCount = countResult?.getChild("count_star()")?.get(0);
+  updateCounters(newData.numRows, matchingRowCount);
   return newData;
 }
 
 async function initializePreview(name: string) {
   tableName = name;
+  resetCounters();
   globalThis.pq = `${tableName}.parquet`;
   document.getElementsByClassName("preview-panel")[0].style.display = "block";
   document.getElementById("table-name").innerHTML = "loading...";
@@ -116,7 +145,9 @@ async function initializePreview(name: string) {
   }
   await addTableToDuckDB(db, tableName);
   const viewer = document.getElementsByTagName("perspective-viewer")[0];
-  const tableData = await getInitialTableData(tableName, c);
+  const [tableData, countResult] = await getInitialTableData(tableName, c);
+  const matchingRowCount = countResult?.getChild("count_star()")?.get(0);
+  updateCounters(tableData.numRows, matchingRowCount);
   document.getElementById("table-name").innerHTML = tableName;
   downloader.disabled = false;
   table = await perspectiveWorker.table(arrow.tableToIPC(tableData, "file"));

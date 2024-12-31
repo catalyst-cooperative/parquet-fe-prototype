@@ -34,15 +34,11 @@ class QuerySpec:
     """Description of a query we should execute on the frontend."""
 
     statement: str
+    count_statement: str
     values: list
 
-
-def perspective_to_duckdb(perspective_filters: PerspectiveFilters) -> QuerySpec:
-    filter_rules = perspective_filters.filter_rules
-    where_clauses = ["true"]
-
+def _filter_rules_to_where(filter_rules: list[FilterRule]) -> tuple[str, list]:
     placeholder_casts = {"date": "?::DATE", "datetime": "?::TIMESTAMP"}
-
     clause_templates = {
         "==": "{col} = {placeholder}",
         "begins with": "STARTS_WITH({col}, {placeholder})",
@@ -58,12 +54,7 @@ def perspective_to_duckdb(perspective_filters: PerspectiveFilters) -> QuerySpec:
     # spurious empty return sets.
     filters_to_apply = [f for f in filter_rules if f.filter[1:] != ("==", None)]
 
-    vals = [
-        f.filter[2]
-        for f in filters_to_apply
-        if f.filter[1] not in {"is null", "is not null"}
-    ]
-
+    where_clauses = ["true"]
     for filter_rule in filters_to_apply:
         placeholder = placeholder_casts.get(filter_rule.type, "?")
         col, op, _ = filter_rule.filter
@@ -72,7 +63,18 @@ def perspective_to_duckdb(perspective_filters: PerspectiveFilters) -> QuerySpec:
             clause_template.format(col=col, op=op, placeholder=placeholder)
         )
 
+    vals = [
+        f.filter[2]
+        for f in filters_to_apply
+        if f.filter[1] not in {"is null", "is not null"}
+    ]
+
+    return " AND ".join(where_clauses), vals
+
+
+def perspective_to_duckdb(perspective_filters: PerspectiveFilters) -> QuerySpec:
+    where, vals = _filter_rules_to_where(perspective_filters.filter_rules)
     table_name = perspective_filters.table_name
-    query = f"SELECT * FROM {table_name} WHERE "
-    query += " AND ".join(where_clauses)
-    return QuerySpec(statement=query, values=vals)
+    query = f"SELECT * FROM {table_name} WHERE {where}"
+    count_query = f"SELECT COUNT(*) FROM {table_name} WHERE {where} LIMIT 1"
+    return QuerySpec(statement=query, count_statement=count_query, values=vals)
