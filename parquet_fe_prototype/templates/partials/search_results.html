@@ -4,7 +4,11 @@
     <h2 class="title is-4 level-left">{{r.name}}</h2>
   </div>
   <div class="block">
+    {% if current_user.is_authenticated %}
     <button class="button is-primary preview-button" onclick="initializePreview('{{ r.name }}')">Preview</button>
+    {% else %}
+    <a class="button is-primary preview-button" href="/login?next={{ url_for(request.endpoint, **request.args) }}">Log in to preview</a>
+    {% endif %}
     <a class="button is-link is-light" href="https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/{{ r.name }}.parquet">Download full table as Parquet</a>
   </div>
   <div class="level">

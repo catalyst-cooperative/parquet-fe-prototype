@@ -96,6 +96,7 @@ async function resetCounters() {
 async function updateCounters(displayedRowCount: number, matchingRowCount: number) {
   const displayedRows = document.getElementById("displayed-rows");
   const matchingRows = document.getElementById("matching-rows");
+  console.log(`Got ${displayedRowCount}/${matchingRowCount} rows`);
   const isIncompletePreview = matchingRowCount > displayedRowCount;
   if (displayedRows !== null) {
     displayedRows.innerText = `${displayedRowCount}`;
@@ -147,7 +148,7 @@ async function initializePreview(name: string) {
   const viewer = document.getElementsByTagName("perspective-viewer")[0];
   const [tableData, countResult] = await getInitialTableData(tableName, c);
   const matchingRowCount = countResult?.getChild("count_star()")?.get(0);
-  updateCounters(tableData.numRows, matchingRowCount);
+  await updateCounters(tableData.numRows, matchingRowCount);
   document.getElementById("table-name").innerHTML = tableName;
   downloader.disabled = false;
   table = await perspectiveWorker.table(arrow.tableToIPC(tableData, "file"));
@@ -161,6 +162,7 @@ async function reapplyFilters() {
   const debounceMs = 300;
   timeout = window.setTimeout(async () => {
     const newData = await _getTableDataForViewer(tableName, viewer, c);
+    console.log("got table data for viewer");
     globalThis.data = newData;
     table.replace(arrow.tableToIPC(newData, "file"));
   }, debounceMs);

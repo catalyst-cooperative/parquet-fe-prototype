@@ -41,11 +41,15 @@ NULL_OPERATORS = {"is null", "is not null"}
 TYPE_CONFIGS = {
     "boolean": {"value_strategy": st.booleans(), "operators": BASE_OPERATORS},
     "date": {
-        "value_strategy": st.dates(min_value=date(1970, 1, 1)).map(lambda d: d.isoformat()),
+        "value_strategy": st.dates(min_value=date(1970, 1, 1)).map(
+            lambda d: d.isoformat()
+        ),
         "operators": BASE_OPERATORS,
     },
     "datetime": {
-        "value_strategy": st.datetimes(min_value=datetime(1970, 1, 1)).map(lambda d: d.isoformat()),
+        "value_strategy": st.datetimes(min_value=datetime(1970, 1, 1)).map(
+            lambda d: d.isoformat()
+        ),
         "operators": BASE_OPERATORS,
     },
     "float": {"value_strategy": st.floats(), "operators": BASE_OPERATORS},
@@ -126,18 +130,14 @@ def rows():
     "filter_rules,row_nums",
     [
         (
-            [
-                FilterRule(
-                    type="date", filter=("date_col", "==", '2024-01-01')
-                )
-            ],
+            [FilterRule(type="date", filter=("date_col", "==", "2024-01-01"))],
             [1],
         ),
         (
             [
                 FilterRule(
                     type="date",
-                    filter=("date_col", ">", '2024-01-02'),
+                    filter=("date_col", ">", "2024-01-02"),
                 )
             ],
             [3, 4],
@@ -146,7 +146,7 @@ def rows():
             [
                 FilterRule(
                     type="date",
-                    filter=("date_col", ">", '2024-01-02'),
+                    filter=("date_col", ">", "2024-01-02"),
                 ),
                 FilterRule(type="float", filter=("float_col", "==", 3.5)),
             ],

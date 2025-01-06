@@ -1,3 +1,5 @@
+volumes:
+  pudl_viewer_postgres_data:
 services:
   pudl_viewer:
     build:
@@ -5,8 +7,34 @@ services:
       dockerfile: Dockerfile
     container_name: pudl-viewer
     environment:
-      PUDL_VIEWER_SECRET_KEY: ${PUDL_VIEWER_FLASK_SECRET_KEY-superset}
+      PUDL_VIEWER_SECRET_KEY: ${PUDL_VIEWER_FLASK_SECRET_KEY-pudl_viewer_secret}
+      PUDL_VIEWER_DB_HOST: ${PUDL_VIEWER_DB_HOST-postgres}
+      PUDL_VIEWER_DB_PORT: ${PUDL_VIEWER_DB_HOST-5432}
+      PUDL_VIEWER_DB_USERNAME: ${PUDL_VIEWER_DB_USERNAME-pudl_viewer}
+      PUDL_VIEWER_DB_PASSWORD: ${PUDL_VIEWER_DB_PASSWORD-pudl_viewer}
+      PUDL_VIEWER_DB_NAME: ${PUDL_VIEWER_DB_NAME-pudl_viewer}
+      PUDL_VIEWER_AUTH0_DOMAIN: ${PUDL_VIEWER_AUTH0_DOMAIN}
+      PUDL_VIEWER_AUTH0_CLIENT_ID: ${PUDL_VIEWER_AUTH0_CLIENT_ID}
+      PUDL_VIEWER_AUTH0_CLIENT_SECRET: ${PUDL_VIEWER_AUTH0_CLIENT_SECRET}
       PORT: 8080
+    volumes:
+      - type: bind
+        source: parquet_fe_prototype
+        target: /app/parquet_fe_prototype
+      - type: bind
+        source: dist
+        target: /app/dist
     ports:
       - target: 8080
-        published: 8081
+        published: 8080
+  postgres: 
+    image: postgres:14
+    environment:
+      POSTGRES_DB: pudl_viewer
+      POSTGRES_USER: pudl_viewer
+      POSTGRES_PASSWORD: pudl_viewer
+    volumes:
+      - pudl_viewer_postgres_data:/var/lib/postgresql/data
+    ports:
+      - target: 5432
+        published: 5432

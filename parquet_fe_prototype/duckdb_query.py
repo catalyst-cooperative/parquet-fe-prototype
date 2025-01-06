@@ -37,6 +37,7 @@ class QuerySpec:
     count_statement: str
     values: list
 
+
 def _filter_rules_to_where(filter_rules: list[FilterRule]) -> tuple[str, list]:
     placeholder_casts = {"date": "?::DATE", "datetime": "?::TIMESTAMP"}
     clause_templates = {
