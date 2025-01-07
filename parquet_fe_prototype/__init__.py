@@ -35,13 +35,18 @@ def __init_auth0(oauth, app):
 
 
 def __init_db(db, app):
-    app.config["SQLALCHEMY_DATABASE_URI"] = (
-        f"postgresql://{os.getenv('PUDL_VIEWER_DB_USERNAME')}:"
-        f"{os.getenv('PUDL_VIEWER_DB_PASSWORD')}@"
-        f"{os.getenv('PUDL_VIEWER_DB_HOST')}:"
-        f"{os.getenv('PUDL_VIEWER_DB_PORT')}/"
-        f"{os.getenv('PUDL_VIEWER_DB_NAME')}"
-    )
+    username = os.getenv("PUDL_VIEWER_DB_USERNAME")
+    password = os.getenv("PUDL_VIEWER_DB_PASSWORD")
+    database = os.getenv("PUDL_VIEWER_DB_NAME")
+
+    if os.environ.get("IS_CLOUD_RUN"):
+        cloud_sql_connection_name = os.environ.get("CLOUD_SQL_CONNECTION_NAME")
+        db_uri = f"postgresql://{username}:{password}@/{database}?host=/cloudsql/{cloud_sql_connection_name}"
+    else:
+        host = os.getenv("PUDL_VIEWER_DB_HOST")
+        port = os.getenv("PUDL_VIEWER_DB_PORT")
+        db_uri = f"postgresql://{username}:{password}@{host}:{port}/{database}"
+    app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
     db.init_app(app)
 
     migrate = Migrate()
@@ -60,6 +65,8 @@ def __build_search_index(app):
 
 def create_app():
     app = Flask("parquet_fe_prototype", instance_relative_config=True)
+    if os.getenv("IS_CLOUD_RUN"):
+        app.config["PREFERRED_URL_SCHEME"] = "https"
     app.config.from_mapping(SECRET_KEY=os.getenv("PUDL_VIEWER_SECRET_KEY"))
 
     oauth = OAuth()
