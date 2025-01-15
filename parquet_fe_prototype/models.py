@@ -18,7 +18,7 @@ class User(UserMixin, db.Model):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     auth0_id: Mapped[str] = mapped_column(unique=True)
-    username: Mapped[str] = mapped_column(unique=True)
+    username: Mapped[str]
     email: Mapped[str]
 
     @staticmethod
@@ -30,5 +30,7 @@ class User(UserMixin, db.Model):
         return User(
             auth0_id=userinfo["sub"],
             email=userinfo["email"],
-            username=userinfo.get("preferred_username", userinfo["email"]),
+            username=userinfo.get(
+                "preferred_username", userinfo["email"].split("@")[0]
+            ),
         )
