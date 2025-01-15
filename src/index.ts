@@ -10,30 +10,121 @@ import "./index.css";
 import { PerspectiveViewerElement } from '@finos/perspective-viewer/dist/pkg/perspective-viewer';
 
 interface FilterRule {
+  /**
+   * Describe one column filter. Mirrors FilterRule in the Python code.
+   * 
+   * TODO 2025-01-15: Define these interfaces in one place - maybe with JSONSchema?
+   *
+   * TODO 2025-01-15: turn the array of [string, string, string] into separate
+   * field name/operator/value fields.
+   */
   filter: [string, string, string];
   type: string;
 }
 
+// This needs to be in the global namespace so that any new preview buttons returned from the search can have access to this function.
 globalThis.initializePreview = initializePreview;
 
-let duckDBInitialized = false;
-const db = await initializeDuckDB();
-const c = await db.connect();
-globalThis.c = c;
-const perspectiveWorker = await perspective.worker();
-const viewer = document.getElementsByTagName("perspective-viewer")[0];
+// TODO 2025-01-15: There's a bunch of global variables here to manage shared
+// state. Probably worth using a lightweight framework like Svelte at this point.
+let DUCK_DB_INITIALIZED = false;
+const DB = await _initializeDuckDB();
+const CONN = await DB.connect();
+const PERSPECTIVE_WORKER = await perspective.worker();
+const VIEWER = document.getElementsByTagName("perspective-viewer")[0];
 
-let table;
-let tableName: string;
-let timeout: number;
+let TABLE: Table;
+let TABLE_NAME: string;
+let FILTER_REAPPLICATION_DEBOUNCE: number;
 
-viewer.addEventListener("perspective-config-update", reapplyFilters);
+VIEWER.addEventListener("perspective-config-update", reapplyFilters);
 
 const downloader = document.getElementById("csv-download") as HTMLButtonElement;
 downloader.onclick = downloadAsCsv;
 
 
-async function initializeDuckDB(): Promise<duckdb.AsyncDuckDB> {
+async function initializePreview(name: string) {
+  /**
+   * The entry-point from the big green button.
+   * 
+   * Makes sure everything is initialized properly, then loads the data.
+   */
+  TABLE_NAME = name;
+  _resetCounters();
+  // TODO 2025-01-15 use the 'is-hidden' class to manage visibility instead -
+  // then we can also use that class to make fancy animations.
+  document.getElementsByClassName("preview-panel")[0].style.display = "block";
+  // TODO 2025-01-15 use the bulma skeleton blocks to show loading-ness
+  document.getElementById("table-name").innerHTML = "loading...";
+
+  const downloader = document.getElementById("csv-download") as HTMLButtonElement;
+  downloader.disabled = true;
+  if (!DUCK_DB_INITIALIZED) {
+    // try again soon if DuckDB hasn't quite been initialized yet.
+    window.setTimeout(() => initializePreview(name), 500);
+  }
+  await _addTableToDuckDB(DB, TABLE_NAME);
+  document.getElementById("table-name").innerHTML = TABLE_NAME;
+  downloader.disabled = false;
+  reapplyFilters();
+}
+
+
+async function reapplyFilters() {
+  /**
+   * Re-get data from DuckDB based on Perspective viewer state.
+   */
+  window.clearTimeout(FILTER_REAPPLICATION_DEBOUNCE);
+  const debounceMs = 300;
+  FILTER_REAPPLICATION_DEBOUNCE = window.setTimeout(async () => {
+    const newData = await _getTableDataForViewer(TABLE_NAME, VIEWER, CONN);
+    console.log("got table data for viewer");
+    if (TABLE === undefined) {
+      TABLE = await PERSPECTIVE_WORKER.table(arrow.tableToIPC(newData, "file"));
+      await VIEWER.load(TABLE);
+      VIEWER.restore({ settings: true });
+    }
+    TABLE.replace(arrow.tableToIPC(newData, "file"));
+  }, debounceMs);
+};
+
+async function downloadAsCsv() {
+  /**
+   * Download the FILTERED but NON-LIMITED data from Parquet and turn it into a CSV.
+   */
+  function arrowToCsv(table: arrow.Table): Blob {
+    const csv = table.toArray()
+      .map(row => Object.values(row).join(','))
+      .join('\n');
+
+    const headers = table.schema.fields.map(f => f.name).join(',');
+    const csvWithHeaders = headers + '\n' + csv;
+
+    return new Blob([csvWithHeaders], { type: 'text/csv' });
+  }
+
+  function downloadBlob(blob: Blob) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = "mydata.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const newData = await _getTableDataForViewer(TABLE_NAME, VIEWER, CONN, true);
+  // TODO 2024-12-16: make this go faster or non-blocking. worker-ify it probably? but maybe just async it.
+  //
+  const blob = arrowToCsv(newData);
+  downloadBlob(blob);
+}
+
+
+async function _initializeDuckDB(): Promise<duckdb.AsyncDuckDB> {
+  /**
+   * Get the duckdb library that works best for your system, then spin up a web
+   * worker for it.
+   */
   const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
 
   // Select a bundle based on browser checks
@@ -49,21 +140,30 @@ async function initializeDuckDB(): Promise<duckdb.AsyncDuckDB> {
   const db = new duckdb.AsyncDuckDB(logger, worker);
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
   URL.revokeObjectURL(worker_url);
-  duckDBInitialized = true;
+  DUCK_DB_INITIALIZED = true;
   return db;
 }
 
-async function addTableToDuckDB(db: duckdb.AsyncDuckDB, tableName: string) {
+
+async function _addTableToDuckDB(db: duckdb.AsyncDuckDB, tableName: string) {
+  /**
+   * Register the table in DuckDB so that it can cache useful metadata etc.
+   */
   const baseUrl = "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/"
   const filename = `${tableName}.parquet`;
   const url = `${baseUrl}${filename}`;
   await db.registerFileURL(filename, url, duckdb.DuckDBDataProtocol.HTTP, false);
 }
 
-async function getDuckDBQuery(
+
+// TODO 2025-01-15: the input type to this function mirrors PerspectiveFilters in Python.
+async function _getDuckDBQuery(
   { tableName, filter_rules: filter_rules, forDownload = false }
     : { tableName: string, filter_rules: Array<FilterRule>, forDownload?: boolean }
 ): Promise<{ statement: string, count_statement: string, values: Array<any> }> {
+  /**
+   * Get DuckDB query from the backend, based on the filter rules & what table we're looking at.
+   */
   const params = new URLSearchParams(
     { perspective_filters: JSON.stringify({ tableName: `${tableName}.parquet`, filter_rules }), forDownload: JSON.stringify(forDownload) }
   );
@@ -73,15 +173,8 @@ async function getDuckDBQuery(
   return query
 }
 
-async function getInitialTableData(
-  tableName: string, c: duckdb.AsyncDuckDBConnection
-): Promise<Array<arrow.Table>> {
-  const { statement, count_statement: countStatement } = await getDuckDBQuery({ tableName, filter_rules: [], forDownload: false });
-  return await Promise.all([c.query(statement), c.query(countStatement)]);
-}
 
-
-async function resetCounters() {
+async function _resetCounters() {
   const displayedRows = document.getElementById("displayed-rows");
   const matchingRows = document.getElementById("matching-rows");
   if (displayedRows !== null) {
@@ -93,7 +186,9 @@ async function resetCounters() {
     matchingRows.className = "has-text-weight-bold";
   }
 }
-async function updateCounters(displayedRowCount: number, matchingRowCount: number) {
+
+
+async function _updateCounters(displayedRowCount: number, matchingRowCount: number) {
   const displayedRows = document.getElementById("displayed-rows");
   const matchingRows = document.getElementById("matching-rows");
   console.log(`Got ${displayedRowCount}/${matchingRowCount} rows`);
@@ -108,89 +203,41 @@ async function updateCounters(displayedRowCount: number, matchingRowCount: numbe
   }
 }
 
+
 async function _getTableDataForViewer(
   tableName: string, viewer: PerspectiveViewerElement, c: duckdb.AsyncDuckDBConnection, forDownload: boolean = false
 ): Promise<arrow.Table> {
+  /**
+   * Get the dang data:
+   * 
+   * 1. get filter state from Perspective
+   * 2. get DuckDB query from server, based on filter state
+   * 3. run both the "get a sample of data" and the "count data rows" queries in DuckDB
+   * 4. update the row counters
+   */
+  // Turn filters from Perspective state into the shape Python server expects
   const { filter: rawFilter } = await viewer.save();
   const filter = rawFilter.filter((e: Array<string>) => e[2] !== null);
-  const schema = await table.schema();
-  const filterRules = filter.map(
-    ([col, op, val]: [string, string, string]) => {
-      return { "filter": [col, op, val], "type": schema[col] };
-    }
-  );
+  let filterRules: Array<FilterRule> = [];
+  if (filter.length > 0) {
+    const schema = await TABLE.schema();
+    filterRules = filter.map(
+      ([col, op, val]: [string, string, string]) => {
+        return { "filter": [col, op, val], "type": schema[col] };
+      }
+    );
+  }
 
-  console.log("filter rules ", filterRules);
-  const { statement, count_statement: countStatement, values: filterVals } = await getDuckDBQuery({ tableName, filter_rules: filterRules, forDownload: forDownload });
+  // TODO 2025-01-15 this shape mirrors python QuerySpec, should define that somewhere too.
+  const { statement, count_statement: countStatement, values: filterVals } = await _getDuckDBQuery(
+    { tableName, filter_rules: filterRules, forDownload: forDownload }
+  );
   const stmt = await c.prepare(statement);
   const counter = await c.prepare(countStatement);
   const [countResult, newData] = await Promise.all(
     [counter.query(...filterVals), stmt.query(...filterVals)]
   );
   const matchingRowCount = countResult?.getChild("count_star()")?.get(0);
-  updateCounters(newData.numRows, matchingRowCount);
+  _updateCounters(newData.numRows, matchingRowCount);
   return newData;
-}
-
-async function initializePreview(name: string) {
-  tableName = name;
-  resetCounters();
-  globalThis.pq = `${tableName}.parquet`;
-  document.getElementsByClassName("preview-panel")[0].style.display = "block";
-  document.getElementById("table-name").innerHTML = "loading...";
-
-  const downloader = document.getElementById("csv-download") as HTMLButtonElement;
-  downloader.disabled = true;
-  if (!duckDBInitialized) {
-    window.setTimeout(() => initializePreview(name), 500);
-  }
-  await addTableToDuckDB(db, tableName);
-  const viewer = document.getElementsByTagName("perspective-viewer")[0];
-  const [tableData, countResult] = await getInitialTableData(tableName, c);
-  const matchingRowCount = countResult?.getChild("count_star()")?.get(0);
-  await updateCounters(tableData.numRows, matchingRowCount);
-  document.getElementById("table-name").innerHTML = tableName;
-  downloader.disabled = false;
-  table = await perspectiveWorker.table(arrow.tableToIPC(tableData, "file"));
-  await viewer.load(table);
-  viewer.restore({ settings: true });
-}
-
-
-async function reapplyFilters() {
-  window.clearTimeout(timeout);
-  const debounceMs = 300;
-  timeout = window.setTimeout(async () => {
-    const newData = await _getTableDataForViewer(tableName, viewer, c);
-    console.log("got table data for viewer");
-    globalThis.data = newData;
-    table.replace(arrow.tableToIPC(newData, "file"));
-  }, debounceMs);
-};
-
-async function downloadAsCsv() {
-  const newData = await _getTableDataForViewer(tableName, viewer, c, true);
-  // TODO 2024-12-16: make this go faster or non-blocking. worker-ify it probably? but maybe just async it.
-  const blob = arrowToCsv(newData);
-  downloadBlob(blob);
-}
-
-function arrowToCsv(table: arrow.Table): Blob {
-  const csv = table.toArray()
-    .map(row => Object.values(row).join(','))
-    .join('\n');
-
-  const headers = table.schema.fields.map(f => f.name).join(',');
-  const csvWithHeaders = headers + '\n' + csv;
-
-  return new Blob([csvWithHeaders], { type: 'text/csv' });
-}
-
-function downloadBlob(blob: Blob) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = "mydata.csv";
-  link.click();
-  URL.revokeObjectURL(url);
 }
