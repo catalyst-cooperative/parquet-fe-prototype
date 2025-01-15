@@ -1,6 +1,10 @@
+"""Interact with the document search."""
+
 import re
 
 from frictionless import Package, Resource
+
+# TODO 2025-01-15: think about switching this over to py-tantivy since that's better maintained
 from whoosh import index
 from whoosh.analysis import RegexTokenizer, LowercaseFilter, StopFilter
 from whoosh.fields import Schema, KEYWORD, TEXT, STORED
@@ -10,6 +14,10 @@ from whoosh.query import Or, Term
 
 
 def initialize_index(datapackage: Package) -> index:
+    """Index the resources from a datapackage for later searching.
+
+    Search index is stored in memory since it's such a small dataset.
+    """
     storage = RamStorage()
 
     analyzer = RegexTokenizer(r"[^\s_]+") | LowercaseFilter() | StopFilter()
@@ -49,6 +57,10 @@ def initialize_index(datapackage: Package) -> index:
 
 
 def run_search(ix: index, raw_query: str) -> list[Resource]:
+    """Actually run a user query.
+
+    This doctors the raw query with some field boosts + tag boosts.
+    """
     with ix.searcher() as searcher:
         parser = MultifieldParser(
             ["name", "description", "columns"],

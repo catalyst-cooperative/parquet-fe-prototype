@@ -7,12 +7,20 @@ from pydantic import BaseModel
 
 
 def _camelize(string: str) -> str:
+    """snake_case to camelCase."""
     words = string.split("_")
     return words[0] + "".join(word.capitalize() for word in words[1:])
 
 
 class FilterRule(BaseModel):
+    """To successfully translate a filter into DuckDB SQL, we need to know the
+    type of the field as well as the actual field name / operation /
+    contents."""
+
     type: str
+    # TODO 2025-01-15 probably turn this into name/op/value fields instead of a
+    # list that relies on position; this will involve translating the list that
+    # Perspective spits out into this structure.
     filter: tuple[str, str, str | int | float | bool]
 
     class Config:
@@ -21,6 +29,8 @@ class FilterRule(BaseModel):
 
 
 class PerspectiveFilters(BaseModel):
+    """What you need from Perspective to generate a DuckDB query."""
+
     table_name: str
     filter_rules: list[FilterRule]
 
@@ -31,7 +41,8 @@ class PerspectiveFilters(BaseModel):
 
 @dataclass
 class QuerySpec:
-    """Description of a query we should execute on the frontend."""
+    """Description of a query we should execute on the frontend. Includes a
+    separate statement to just get the counts."""
 
     statement: str
     count_statement: str
@@ -39,6 +50,7 @@ class QuerySpec:
 
 
 def _filter_rules_to_where(filter_rules: list[FilterRule]) -> tuple[str, list]:
+    """Convert FilterRules to a WHERE clause."""
     placeholder_casts = {"date": "?::DATE", "datetime": "?::TIMESTAMP"}
     clause_templates = {
         "==": "{col} = {placeholder}",
@@ -74,6 +86,7 @@ def _filter_rules_to_where(filter_rules: list[FilterRule]) -> tuple[str, list]:
 
 
 def perspective_to_duckdb(perspective_filters: PerspectiveFilters) -> QuerySpec:
+    """Turn perspective filters into a set of DuckDB queries for the frontend to run."""
     where, vals = _filter_rules_to_where(perspective_filters.filter_rules)
     table_name = perspective_filters.table_name
     query = f"SELECT * FROM {table_name} WHERE {where}"
