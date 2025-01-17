@@ -31,31 +31,53 @@ let DUCK_DB_INITIALIZED = false;
 const DB = await _initializeDuckDB();
 const CONN = await DB.connect();
 const PERSPECTIVE_WORKER = await perspective.worker();
-const VIEWER = document.getElementsByTagName("perspective-viewer")[0];
+let VIEWER = document.getElementsByTagName("perspective-viewer")[0];
 
-let TABLE: Table;
+let TABLE: Table | null = null;
 let TABLE_NAME: string;
 let FILTER_REAPPLICATION_DEBOUNCE: number;
+let LOADING_STATE_DEBOUNCE: number;
 
-VIEWER.addEventListener("perspective-config-update", () => reapplyFilters(VIEWER));
+const DOWNLOADER = document.getElementById("csv-download") as HTMLButtonElement;
+DOWNLOADER.onclick = downloadAsCsv;
 
-const downloader = document.getElementById("csv-download") as HTMLButtonElement;
-downloader.onclick = downloadAsCsv;
+let CLICKED_BUTTON: HTMLButtonElement;
+const PREVIEW_PANEL = document.getElementsByClassName("preview-panel")[0];
 
+async function configUpdateHandler() {
+  console.log("checking!!");
+  const newConfig = await VIEWER.save();
+  console.log(newConfig);
+  reapplyFilters(VIEWER);
+}
 
-async function initializePreview(name: string) {
+async function closePreview() {
+  /** clean up some viewer resources when closing the preview panel */
+  TABLE.clear();
+  TABLE = null;
+  VIEWER.reset();
+  PREVIEW_PANEL.classList.add("is-hidden");
+}
+
+globalThis.closePreview = closePreview;
+
+async function initializePreview(name: string, clickedButton: HTMLButtonElement) {
   /**
    * The entry-point from the big green button.
    * 
    * Makes sure everything is initialized properly, then loads the data.
    */
+  if (TABLE !== null) {
+    TABLE.clear();
+    TABLE = null;
+  }
   TABLE_NAME = name;
+  CLICKED_BUTTON = clickedButton;
+
   _hideExcessUi(VIEWER);
+  CLICKED_BUTTON.classList.add("is-loading");
   _resetCounters();
-  // TODO 2025-01-15 use the 'is-hidden' class to manage visibility instead -
-  // then we can also use that class to make fancy animations.
-  document.getElementsByClassName("preview-panel")[0].style.display = "block";
-  // TODO 2025-01-15 use the bulma skeleton blocks to show loading-ness
+  PREVIEW_PANEL.classList.remove("is-hidden");
   document.getElementById("table-name").innerHTML = "loading...";
 
   const downloader = document.getElementById("csv-download") as HTMLButtonElement;
@@ -67,25 +89,27 @@ async function initializePreview(name: string) {
   await _addTableToDuckDB(DB, TABLE_NAME);
   document.getElementById("table-name").innerHTML = TABLE_NAME;
   downloader.disabled = false;
-  reapplyFilters(VIEWER);
+  await reapplyFilters(VIEWER, 0);
 }
 
 
-async function reapplyFilters(viewer) {
+async function reapplyFilters(viewer, debounceMs = 300) {
   /**
    * Re-get data from DuckDB based on Perspective viewer state.
    */
   window.clearTimeout(FILTER_REAPPLICATION_DEBOUNCE);
-  const debounceMs = 300;
   FILTER_REAPPLICATION_DEBOUNCE = window.setTimeout(async () => {
     const newData = await _getTableDataForViewer(TABLE_NAME, viewer, CONN);
-    console.log("got table data for viewer");
-    if (TABLE === undefined) {
+    if (TABLE === null) {
       TABLE = await PERSPECTIVE_WORKER.table(arrow.tableToIPC(newData, "file"));
       await viewer.load(TABLE);
-      viewer.restore({ settings: true });
+      await viewer.restore({ settings: true });
+      VIEWER.addEventListener("perspective-config-update", configUpdateHandler);
+    } else {
+      TABLE.replace(arrow.tableToIPC(newData, "file"));
     }
-    TABLE.replace(arrow.tableToIPC(newData, "file"));
+    PREVIEW_PANEL.classList.remove("is-skeleton");
+    CLICKED_BUTTON.classList.remove("is-loading");
   }, debounceMs);
 };
 
@@ -216,11 +240,9 @@ async function _resetCounters() {
   const matchingRows = document.getElementById("matching-rows");
   if (displayedRows !== null) {
     displayedRows.innerText = "???";
-    displayedRows.className = "has-text-weight-bold";
   }
   if (matchingRows !== null) {
     matchingRows.innerText = "???";
-    matchingRows.className = "has-text-weight-bold";
   }
 }
 
@@ -231,12 +253,20 @@ async function _updateCounters(displayedRowCount: number, matchingRowCount: numb
   console.log(`Got ${displayedRowCount}/${matchingRowCount} rows`);
   const isIncompletePreview = matchingRowCount > displayedRowCount;
   if (displayedRows !== null) {
-    displayedRows.innerText = `${displayedRowCount}`;
-    displayedRows.className = isIncompletePreview ? "has-text-weight-bold has-text-warning" : "has-text-weight-bold";
+    displayedRows.innerText = `${displayedRowCount.toLocaleString()}`;
+    if (isIncompletePreview) {
+      displayedRows.classList.add("has-text-warning");
+    } else {
+      displayedRows.classList.remove("has-text-warning");
+    }
   }
   if (matchingRows !== null) {
-    matchingRows.innerText = `${matchingRowCount}`;
-    matchingRows.className = isIncompletePreview ? "has-text-weight-bold has-text-warning" : "has-text-weight-bold";
+    matchingRows.innerText = `${matchingRowCount.toLocaleString()}`;
+    if (isIncompletePreview) {
+      matchingRows.classList.add("has-text-warning");
+    } else {
+      matchingRows.classList.remove("has-text-warning");
+    }
   }
 }
 
@@ -274,9 +304,13 @@ async function _getTableDataForViewer(
   );
   const stmt = await c.prepare(statement);
   const counter = await c.prepare(countStatement);
+  LOADING_STATE_DEBOUNCE = window.setTimeout(() => {
+    PREVIEW_PANEL.classList.add("is-skeleton")
+  }, 500);
   const [countResult, newData] = await Promise.all(
     [counter.query(...filterVals), stmt.query(...filterVals)]
   );
+  window.clearTimeout(LOADING_STATE_DEBOUNCE);
   const matchingRowCount = countResult?.getChild("count_star()")?.get(0);
   _updateCounters(newData.numRows, matchingRowCount);
   return newData;

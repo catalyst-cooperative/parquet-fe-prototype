@@ -59,14 +59,14 @@
             {% include 'partials/search_results.html' %}
         </div>
     </div>
-    <div class="preview-panel box column is-two-thirds" data-theme="dark">
+    <div class="preview-panel box column is-two-thirds is-hidden" data-theme="dark">
         <div class="level">
           <div class="level-left">
             <h2 id="table-name" class="title is-4 level-item my-auto">{{ table }}</h2>
           </div>
           <div class="level-right">
             <button class="button level-item is-primary" id="csv-download">Download as CSV</button>
-            <button class="delete level-item" onclick="document.getElementsByClassName('preview-panel')[0].style.display='none';"></button>
+            <button class="delete level-item" onclick="closePreview()"></button>
           </div>
         </div>
         <h3 id="row-counter" class="subtitle is-6">Showing <span id="displayed-rows" class="has-text-weight-bold">???</span> rows out of <span id="matching-rows" class="has-text-weight-bold">???</span> rows that match your filters</h3>

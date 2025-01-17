@@ -17,7 +17,6 @@ perspective-viewer {
 }
 
 .preview-panel {
-  display: none;
   background-color: #242526; /* to match perspective Pro Dark theme */
 }
 

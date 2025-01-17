@@ -5,7 +5,7 @@
   </div>
   <div class="block">
     {% if current_user.is_authenticated %}
-    <button class="button is-primary preview-button" onclick="initializePreview('{{ r.name }}')">Preview</button>
+    <button class="button is-primary preview-button" onclick="initializePreview('{{ r.name }}', this)">Preview</button>
     {% else %}
     <a class="button is-primary preview-button" href="/login?next={{ url_for(request.endpoint, **request.args) }}">Log in to preview</a>
     {% endif %}
