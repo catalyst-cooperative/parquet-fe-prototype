@@ -48,7 +48,7 @@ TYPE_CONFIGS = {
     },
     "datetime": {
         "value_strategy": st.datetimes(min_value=datetime(1970, 1, 1)).map(
-            lambda d: d.isoformat()
+            lambda d: d.timestamp() * 1000
         ),
         "operators": BASE_OPERATORS,
     },

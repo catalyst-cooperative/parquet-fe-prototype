@@ -235,6 +235,9 @@ async function _getTableDataForViewer(
     const schema = await TABLE.schema();
     filterRules = filter.map(
       ([col, op, val]: [string, string, string]) => {
+        if (schema[col] == "datetime") {
+
+        }
         return { "filter": [col, op, val], "type": schema[col] };
       }
     );

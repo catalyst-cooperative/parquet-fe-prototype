@@ -51,7 +51,7 @@ class QuerySpec:
 
 def _filter_rules_to_where(filter_rules: list[FilterRule]) -> tuple[str, list]:
     """Convert FilterRules to a WHERE clause."""
-    placeholder_casts = {"date": "?::DATE", "datetime": "?::TIMESTAMP"}
+    placeholder_casts = {"date": "?::DATE", "datetime": "epoch_ms(?::BIGINT)"}
     clause_templates = {
         "==": "{col} = {placeholder}",
         "begins with": "STARTS_WITH({col}, {placeholder})",
