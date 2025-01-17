@@ -37,7 +37,7 @@ let TABLE: Table;
 let TABLE_NAME: string;
 let FILTER_REAPPLICATION_DEBOUNCE: number;
 
-VIEWER.addEventListener("perspective-config-update", reapplyFilters);
+VIEWER.addEventListener("perspective-config-update", () => reapplyFilters(VIEWER));
 
 const downloader = document.getElementById("csv-download") as HTMLButtonElement;
 downloader.onclick = downloadAsCsv;
@@ -50,6 +50,7 @@ async function initializePreview(name: string) {
    * Makes sure everything is initialized properly, then loads the data.
    */
   TABLE_NAME = name;
+  _hideExcessUi(VIEWER);
   _resetCounters();
   // TODO 2025-01-15 use the 'is-hidden' class to manage visibility instead -
   // then we can also use that class to make fancy animations.
@@ -66,23 +67,23 @@ async function initializePreview(name: string) {
   await _addTableToDuckDB(DB, TABLE_NAME);
   document.getElementById("table-name").innerHTML = TABLE_NAME;
   downloader.disabled = false;
-  reapplyFilters();
+  reapplyFilters(VIEWER);
 }
 
 
-async function reapplyFilters() {
+async function reapplyFilters(viewer) {
   /**
    * Re-get data from DuckDB based on Perspective viewer state.
    */
   window.clearTimeout(FILTER_REAPPLICATION_DEBOUNCE);
   const debounceMs = 300;
   FILTER_REAPPLICATION_DEBOUNCE = window.setTimeout(async () => {
-    const newData = await _getTableDataForViewer(TABLE_NAME, VIEWER, CONN);
+    const newData = await _getTableDataForViewer(TABLE_NAME, viewer, CONN);
     console.log("got table data for viewer");
     if (TABLE === undefined) {
       TABLE = await PERSPECTIVE_WORKER.table(arrow.tableToIPC(newData, "file"));
-      await VIEWER.load(TABLE);
-      VIEWER.restore({ settings: true });
+      await viewer.load(TABLE);
+      viewer.restore({ settings: true });
     }
     TABLE.replace(arrow.tableToIPC(newData, "file"));
   }, debounceMs);
@@ -119,6 +120,17 @@ async function downloadAsCsv() {
   downloadBlob(blob);
 }
 
+
+function _hideExcessUi(viewer) {
+  /**
+   * Reach into the shadow DOM and hide the menu bar & the "new column" button.
+   *
+   * It doesn't feel nice to hide the "export" button, but we're replacing it with a * *better* one so that seems OK.
+   */
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync("#menu-bar, #add-expression { display: none !important; }");
+  viewer.shadowRoot.adoptedStyleSheets.push(sheet);
+}
 
 async function _initializeDuckDB(): Promise<duckdb.AsyncDuckDB> {
   /**
