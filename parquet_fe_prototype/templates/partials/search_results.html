@@ -16,16 +16,15 @@
   </div>
   <div class="block">
     <h3 class="title is-5">Columns</h3>
-    <table class="table">
     {% for f in r.schema.fields %}
-      <tr>
-        <td class="field-name">
-          <strong>{{ f.name }}</strong>
-        </td>
-        <td>
-          {{ f.description }}
-        </td>
-      </tr>
+    <div class="mb-2">
+      <div>
+        <strong>{{ f.name }}</strong>
+      </div>
+      <div class="pl-4">
+            {{ f.description }}
+      </div>
+    </div>
     {% endfor %}
     </table>
   </div>
