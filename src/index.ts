@@ -94,8 +94,33 @@ async function downloadAsCsv() {
    * Download the FILTERED but NON-LIMITED data from Parquet and turn it into a CSV.
    */
   function arrowToCsv(table: arrow.Table): Blob {
+
+    function convertRow(row: Array<any>, types: Map<string, arrow.Type>) {
+      /**
+       * If the data type is date-y, convert to ISO string.
+       */
+      const timestampTypeIds = new Set(
+        [
+          arrow.Type.Date,
+          arrow.Type.DateDay,
+          arrow.Type.DateMillisecond,
+          arrow.Type.Timestamp,
+          arrow.Type.TimestampMicrosecond,
+          arrow.Type.TimestampMillisecond,
+          arrow.Type.TimestampNanosecond,
+          arrow.Type.TimestampSecond
+        ]
+      );
+      return Object.entries(row).map(
+        ([key, value]) =>
+          timestampTypeIds.has(types.get(key)) ? (new Date(value)).toISOString() : value
+      ).join(',')
+    }
+
+    const types = new Map(table.schema.fields.map(f => [f.name, f.type.typeId]));
+
     const csv = table.toArray()
-      .map(row => Object.values(row).join(','))
+      .map(row => convertRow(row, types))
       .join('\n');
 
     const headers = table.schema.fields.map(f => f.name).join(',');
