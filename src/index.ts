@@ -237,19 +237,18 @@ async function _getDuckDBQuery(
 
 async function _resetCounters() {
   const displayedRows = document.getElementById("displayed-rows");
-  const matchingRows = document.getElementById("matching-rows");
+  const matchingRows = document.getElementsByClassName("matching-rows");
   if (displayedRows !== null) {
     displayedRows.innerText = "???";
   }
-  if (matchingRows !== null) {
-    matchingRows.innerText = "???";
-  }
+  [...matchingRows].forEach(e => e.innerText = "???");
 }
 
 
 async function _updateCounters(displayedRowCount: number, matchingRowCount: number) {
+  DOWNLOADER.disabled = matchingRowCount > 100000;
   const displayedRows = document.getElementById("displayed-rows");
-  const matchingRows = document.getElementById("matching-rows");
+  const matchingRows = document.getElementsByClassName("matching-rows");
   console.log(`Got ${displayedRowCount}/${matchingRowCount} rows`);
   const isIncompletePreview = matchingRowCount > displayedRowCount;
   if (displayedRows !== null) {
@@ -260,14 +259,15 @@ async function _updateCounters(displayedRowCount: number, matchingRowCount: numb
       displayedRows.classList.remove("has-text-warning");
     }
   }
-  if (matchingRows !== null) {
-    matchingRows.innerText = `${matchingRowCount.toLocaleString()}`;
+
+  [...matchingRows].forEach(e => {
+    e.innerText = `${matchingRowCount.toLocaleString()}`;
     if (isIncompletePreview) {
-      matchingRows.classList.add("has-text-warning");
+      e.classList.add("has-text-warning");
     } else {
-      matchingRows.classList.remove("has-text-warning");
+      e.classList.remove("has-text-warning");
     }
-  }
+  });
 }
 
 

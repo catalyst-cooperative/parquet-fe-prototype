@@ -15,7 +15,8 @@
     {{r.description | safe}}
   </div>
   <div class="block">
-    <h3 class="title is-5">Columns</h3>
+    <details>
+    <summary class="title is-5"> Columns </summary>
     {% for f in r.schema.fields %}
     <div class="mb-2">
       <div>
@@ -26,7 +27,7 @@
       </div>
     </div>
     {% endfor %}
-    </table>
+    </details>
   </div>
 </div>
 {% endfor %}

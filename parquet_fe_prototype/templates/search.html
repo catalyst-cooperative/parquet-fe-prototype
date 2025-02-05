@@ -65,11 +65,11 @@
             <h2 id="table-name" class="title is-4 level-item my-auto">{{ table }}</h2>
           </div>
           <div class="level-right">
-            <button class="button level-item is-primary" id="csv-download">Download as CSV</button>
+            <button class="button level-item is-primary" id="csv-download">Export&nbsp;<span class="matching-rows">???</span>&nbsp;rows to CSV</button>
             <button class="delete level-item" onclick="closePreview()"></button>
           </div>
         </div>
-        <h3 id="row-counter" class="subtitle is-6">Showing <span id="displayed-rows" class="has-text-weight-bold">???</span> rows out of <span id="matching-rows" class="has-text-weight-bold">???</span> rows that match your filters</h3>
+        <h3 id="row-counter" class="subtitle is-6">Showing <span id="displayed-rows" class="has-text-weight-bold">???</span> rows out of <span class="matching-rows has-text-weight-bold">???</span> rows that match your filters</h3>
         <div class="data-table">
             <perspective-viewer
                 settings="true"
