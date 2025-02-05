@@ -1,8 +1,3 @@
-perspective-viewer { 
-  height: calc(100vh - 9rem);
-  border: 1px solid #444950; /* to match perspective Pro Dark theme */
-}
-
 .full-app {
   height: 100vh;
 }
@@ -16,15 +11,11 @@ perspective-viewer {
   overflow-y: scroll;
 }
 
-.preview-panel {
-  background-color: #242526; /* to match perspective Pro Dark theme */
-}
-
-table {
-  table-layout: fixed;
-}
-
 .field-name {
   max-width: 40%;
   overflow: wrap;
+}
+
+#data-table {
+  height: 500px;
 }

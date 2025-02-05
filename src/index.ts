@@ -1,185 +1,288 @@
 import * as duckdb from '@duckdb/duckdb-wasm';
 import * as arrow from 'apache-arrow';
-import perspective, { Table } from "@finos/perspective";
-import "@finos/perspective-viewer";
-import "@finos/perspective-viewer-datagrid";
-import "@finos/perspective-viewer-d3fc";
 
-import "@finos/perspective-viewer/dist/css/pro-dark.css";
+import { DATE_TS_TYPE_IDS, DATE_TYPE_IDS, TIMESTAMP_TYPE_IDS } from './constants';
+import { createGrid, ModuleRegistry, AllCommunityModule, GridApi, GridOptions } from 'ag-grid-community';
+import Alpine, { AlpineComponent } from 'alpinejs';
+
 import "./index.css";
-import { PerspectiveViewerElement } from '@finos/perspective-viewer/dist/pkg/perspective-viewer';
 
-interface FilterRule {
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+interface Filter {
   /**
    * Describe one column filter. Mirrors FilterRule in the Python code.
    * 
    * TODO 2025-01-15: Define these interfaces in one place - maybe with JSONSchema?
-   *
-   * TODO 2025-01-15: turn the array of [string, string, string] into separate
-   * field name/operator/value fields.
    */
-  filter: [string, string, string];
-  type: string;
+  fieldName: string;
+  fieldType: string;
+  operation: string;
+  value: any;
+  valueTo: any;
 }
 
-// This needs to be in the global namespace so that any new preview buttons returned from the search can have access to this function.
-globalThis.initializePreview = initializePreview;
-
-// TODO 2025-01-15: There's a bunch of global variables here to manage shared
-// state. Probably worth using a lightweight framework like Svelte at this point.
-let DUCK_DB_INITIALIZED = false;
-const DB = await _initializeDuckDB();
-const CONN = await DB.connect();
-const PERSPECTIVE_WORKER = await perspective.worker();
-let VIEWER = document.getElementsByTagName("perspective-viewer")[0];
-
-let TABLE: Table | null = null;
-let TABLE_NAME: string;
-let FILTER_REAPPLICATION_DEBOUNCE: number;
-let LOADING_STATE_DEBOUNCE: number;
-
-const DOWNLOADER = document.getElementById("csv-download") as HTMLButtonElement;
-DOWNLOADER.onclick = downloadAsCsv;
-
-let CLICKED_BUTTON: HTMLButtonElement;
-const PREVIEW_PANEL = document.getElementsByClassName("preview-panel")[0];
-
-async function configUpdateHandler() {
-  console.log("checking!!");
-  const newConfig = await VIEWER.save();
-  console.log(newConfig);
-  reapplyFilters(VIEWER);
-}
-
-async function closePreview() {
-  /** clean up some viewer resources when closing the preview panel */
-  TABLE.clear();
-  TABLE = null;
-  VIEWER.reset();
-  PREVIEW_PANEL.classList.add("is-hidden");
-}
-
-globalThis.closePreview = closePreview;
-
-async function initializePreview(name: string, clickedButton: HTMLButtonElement) {
+interface QuerySpec {
   /**
-   * The entry-point from the big green button.
+   * What we need to send a query to duckdb.
+   */
+  statement: string;
+  count_statement: string;
+  values: Array<any>;
+}
+
+interface QueryEndpointPayload {
+  /**
+   * This is what we need to actually get a query back from the server.
    * 
-   * Makes sure everything is initialized properly, then loads the data.
+   * TODO 2025-02-13: conn probably shouldn't be in here.
    */
-  if (TABLE !== null) {
-    TABLE.clear();
-    TABLE = null;
-  }
-  TABLE_NAME = name;
-  CLICKED_BUTTON = clickedButton;
-
-  _hideExcessUi(VIEWER);
-  CLICKED_BUTTON.classList.add("is-loading");
-  _resetCounters();
-  PREVIEW_PANEL.classList.remove("is-hidden");
-  document.getElementById("table-name").innerHTML = "loading...";
-
-  const downloader = document.getElementById("csv-download") as HTMLButtonElement;
-  downloader.disabled = true;
-  if (!DUCK_DB_INITIALIZED) {
-    // try again soon if DuckDB hasn't quite been initialized yet.
-    window.setTimeout(() => initializePreview(name), 500);
-  }
-  await _addTableToDuckDB(DB, TABLE_NAME);
-  document.getElementById("table-name").innerHTML = TABLE_NAME;
-  downloader.disabled = false;
-  await reapplyFilters(VIEWER, 0);
+  conn: duckdb.AsyncDuckDBConnection;
+  tableName: string;
+  filters: Array<Filter>;
+  page: number;
+  perPage: number
 }
 
-
-async function reapplyFilters(viewer, debounceMs = 300) {
+interface UnitializedTableState extends AlpineComponent<{}> {
   /**
-   * Re-get data from DuckDB based on Perspective viewer state.
+   * Weird mirror to make the types play nice - lots of stuff is only defined after init() is called.
    */
-  window.clearTimeout(FILTER_REAPPLICATION_DEBOUNCE);
-  FILTER_REAPPLICATION_DEBOUNCE = window.setTimeout(async () => {
-    const newData = await _getTableDataForViewer(TABLE_NAME, viewer, CONN);
-    if (TABLE === null) {
-      TABLE = await PERSPECTIVE_WORKER.table(arrow.tableToIPC(newData, "file"));
-      await viewer.load(TABLE);
-      await viewer.restore({ settings: true });
-      VIEWER.addEventListener("perspective-config-update", configUpdateHandler);
-    } else {
-      TABLE.replace(arrow.tableToIPC(newData, "file"));
+  tableName: string | null;
+  numRowsMatched: number | null;
+  numRowsDisplayed: number;
+  addedTables: Set<string>;
+  showPreview: boolean;
+  csvExportPageSize: number;
+  exporting: boolean;
+  gridApi: GridApi | null;
+  db: duckdb.AsyncDuckDB | null;
+  conn: duckdb.AsyncDuckDBConnection | null;
+  exportCsv: () => void;
+}
+
+interface TableState extends AlpineComponent<{}> {
+  /**
+   * The strict version of the table state type, which has everything non-null.
+   */
+  tableName: string;
+  numRowsMatched: number;
+  numRowsDisplayed: number;
+  addedTables: Set<string>;
+  showPreview: boolean;
+  csvExportPageSize: number;
+  exporting: boolean;
+  gridApi: GridApi;
+  db: duckdb.AsyncDuckDB;
+  conn: duckdb.AsyncDuckDBConnection;
+  exportCsv: () => void;
+}
+
+const data: UnitializedTableState = {
+  tableName: null,
+  numRowsMatched: null,
+  numRowsDisplayed: 0,
+  addedTables: new Set(),
+  showPreview: false,
+  csvExportPageSize: 1_000_000,
+  exporting: false,
+  gridApi: null,
+  db: null,
+  conn: null,
+
+  async init() {
+    /**
+     * Initialization function:
+     *
+     * - makes sure duckDB is alive
+     * - makes an AG Grid
+     * - attaches event handlers.
+     */
+    console.log("Initializing");
+
+    this.db = await _initializeDuckDB();
+
+    this.conn = await this.db.connect();
+    await this.conn.query("SET default_collation='nocase';");
+
+    const gridOptions: GridOptions = {
+      onFilterChanged: async () => refreshTable(this as TableState)
     }
-    PREVIEW_PANEL.classList.remove("is-skeleton");
-    CLICKED_BUTTON.classList.remove("is-loading");
-  }, debounceMs);
+    const host = document.getElementById("data-table")!;
+    this.gridApi = createGrid(host, gridOptions);
+    this.$watch("tableName", () => refreshTable(this as TableState));
+  },
+
+  async exportCsv() {
+    /**
+     * Download data one giant page at a time, and then export to CSV.
+     */
+    const state = this as TableState;
+    const { conn, tableName, gridApi, csvExportPageSize } = state;
+    state.exporting = true;
+    const numPages = Math.ceil(state.numRowsMatched / state.csvExportPageSize);
+
+    for (let i = 1; i <= numPages; i++) {
+      const filename = numPages === 1 ? tableName : `${tableName}_part${i}`;
+      await exportPage(gridApi, filename, { conn, tableName, page: i, perPage: csvExportPageSize, filters: getFilters(gridApi) })
+    }
+    state.exporting = false;
+  }
 };
 
-async function downloadAsCsv() {
+Alpine.data("tableState", () => data);
+Alpine.start();
+
+async function refreshTable(state: TableState) {
   /**
-   * Download the FILTERED but NON-LIMITED data from Parquet and turn it into a CSV.
+   * Re-query the data given the current table state.
+   * 
+   * TODO 2025-02-13 - since this mutates table state, maybe it should live in
+   * the table state object too?
+   * 
+   * - check if the table has been registered - if not, register it.
+   * - grab filters, table name, and get arrowData + a count back.
+   * - turn arrowData into gridOptions.
+   * - update the counters.
+   * - throw the gridOptions at the gridApi.
    */
-  function arrowToCsv(table: arrow.Table): Blob {
+  const { tableName, conn, db, gridApi, addedTables } = state;
 
-    function convertRow(row: Array<any>, types: Map<string, arrow.Type>) {
-      /**
-       * If the data type is date-y, convert to ISO string.
-       */
-      const timestampTypeIds = new Set(
-        [
-          arrow.Type.Date,
-          arrow.Type.DateDay,
-          arrow.Type.DateMillisecond,
-          arrow.Type.Timestamp,
-          arrow.Type.TimestampMicrosecond,
-          arrow.Type.TimestampMillisecond,
-          arrow.Type.TimestampNanosecond,
-          arrow.Type.TimestampSecond
-        ]
-      );
-      return Object.entries(row).map(
-        ([key, value]) =>
-          timestampTypeIds.has(types.get(key)) ? (new Date(value)).toISOString() : value
-      ).join(',')
-    }
-
-    const types = new Map(table.schema.fields.map(f => [f.name, f.type.typeId]));
-
-    const csv = table.toArray()
-      .map(row => convertRow(row, types))
-      .join('\n');
-
-    const headers = table.schema.fields.map(f => f.name).join(',');
-    const csvWithHeaders = headers + '\n' + csv;
-
-    return new Blob([csvWithHeaders], { type: 'text/csv' });
+  if (tableName && !addedTables.has(tableName)) {
+    await _addTableToDuckDB(db, tableName);
+    addedTables.add(tableName);
   }
+  const filters = getFilters(gridApi);
+  const { arrowData, numRowsMatched } = await getAndCountData({ conn, tableName, filters, page: 1, perPage: 10_000 });
+  const gridOptions = arrowTableToAgGridOptions(arrowData);
+  gridApi.updateGridOptions(gridOptions);
 
-  function downloadBlob(blob: Blob) {
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = "mydata.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-  }
+  state.numRowsMatched = numRowsMatched;
+  state.numRowsDisplayed = arrowData.numRows;
+}
 
-  const newData = await _getTableDataForViewer(TABLE_NAME, VIEWER, CONN, true);
-  // TODO 2024-12-16: make this go faster or non-blocking. worker-ify it probably? but maybe just async it.
-  //
-  const blob = arrowToCsv(newData);
-  downloadBlob(blob);
+function getFilters(gridApi: GridApi): Array<Filter> {
+  /**
+   * Convert GridApi filter model to a list of Filters.
+   * 
+   * TODO 2025-02-13: if we start getting multiple filter conditions on each
+   * column we will have to handle this differently - i.e. we'll have to retool
+   * the Filter type altogether.
+   */
+  return Object.entries(gridApi.getFilterModel())
+    .map(
+      ([fieldName, { filterType, type, filter, filterTo }]) => (
+        { fieldName, fieldType: filterType, operation: type, value: filter, valueTo: filterTo }
+      )
+    );
+}
+
+async function getAndCountData(params: QueryEndpointPayload) {
+  /**
+   * Get the data, and also count how many the full result would be.
+   * 
+   * - get the DuckDB query
+   * - run the main query and the count query on DuckDB
+   * - return both
+   */
+  const { conn, tableName, filters, page, perPage } = params;
+  const { statement, count_statement: countStatement, values: filterVals } = await _getDuckDBQuery(
+    { tableName, filters: filters, page, perPage }
+  );
+  const stmt = await conn.prepare(statement);
+  const counter = await conn.prepare(countStatement);
+  const [countResult, arrowData] = await Promise.all(
+    [counter.query(...filterVals), stmt.query(...filterVals)]
+  );
+  const numRowsMatched = parseInt(countResult?.getChild("count_star()")?.get(0));
+
+  return { arrowData, numRowsMatched }
+
+}
+
+async function getData(params: QueryEndpointPayload) {
+  /**
+   * Get the data, and also count how many the full result would be.
+   * 
+   * - get the DuckDB query
+   * - run the main query on DuckDB
+   */
+  const { conn, tableName, filters, page, perPage } = params;
+  const { statement, values: filterVals } = await _getDuckDBQuery(
+    { tableName, filters: filters, page, perPage }
+  );
+  const stmt = await conn.prepare(statement);
+  const arrowData = await stmt.query(...filterVals);
+  return arrowData;
 }
 
 
-function _hideExcessUi(viewer) {
+async function exportPage(gridApi: GridApi, filename: string, params: QueryEndpointPayload) {
   /**
-   * Reach into the shadow DOM and hide the menu bar & the "new column" button.
+   * Actually do the downloading/CSV export for a single page.
    *
-   * It doesn't feel nice to hide the "export" button, but we're replacing it with a * *better* one so that seems OK.
+   * - get data
+   * - reshape it into CSV
+   * - make a blob
+   * - download it
    */
-  const sheet = new CSSStyleSheet();
-  sheet.replaceSync("#menu-bar, #add-expression { display: none !important; }");
-  viewer.shadowRoot.adoptedStyleSheets.push(sheet);
+  const arrowTable = await getData(params);
+  const { rowData } = arrowTableToAgGridOptions(arrowTable);
+
+  const columns = gridApi.getColumns()?.map(col => col.colId) ?? [];
+  const headers = columns.join(",");
+
+  // get row values in the order of the columns passed in, then do one big string conversion using JSON.stringify.
+  const rows = JSON.stringify(rowData!.map(row => columns.map(col => row[col])))
+    .replace(/\],\[/g, '\n')
+    .replace(/\[\[|\]\]/g, '');
+
+  // make a binary file to download.
+  const blob = new Blob([`${headers}\n${rows}`], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${filename}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+function arrowTableToAgGridOptions(table: arrow.Table): GridOptions {
+  /**
+   * Convert an Arrow table into something AG Grid can understand - a list of
+   * records and a funny bespoke schema object (columnDefs).
+   * 
+   * We have to set some different options based on the type information in
+   * Arrow - i.e. date formatting.
+   *
+   * TODO 2025-02-13: If we want to make a custom filter UI for specific types
+   * (i.e. datetimes, categoricals) we'll need to set them in typeOpts.
+   */
+  const typeOpts = new Map([...TIMESTAMP_TYPE_IDS].map(tid => [tid, { valueFormatter: p => p.value?.toISOString() }]));
+  const defaultOpts = { filter: true, filterParams: { maxNumConditions: 1, buttons: ["apply", "clear", "reset", "cancel"] } };
+
+  const schema = table.schema;
+  const columnDefs = schema.fields.map(
+    f => ({
+      ...defaultOpts,
+      ...(typeOpts.get(f.type.typeId) ?? {}),
+      field: f.name,
+      headerName: f.name,
+    })
+  );
+  const timestampColumns = schema.fields.filter(f => DATE_TS_TYPE_IDS.has(f.type.typeId)).map(f => f.name);
+  const rowData = table.toArray().map(row => convertDatetimes(timestampColumns, row.toJSON()));
+  return { columnDefs, rowData };
 }
+
+function convertDatetimes(timestampColumns: Array<string>, row: Object): Object {
+  /**
+   * Convert the integer timestamps that Arrow uses into JS Date objects.
+   */
+  timestampColumns.forEach(col => { row[col] = new Date(row[col]) });
+  return row;
+}
+
 
 async function _initializeDuckDB(): Promise<duckdb.AsyncDuckDB> {
   /**
@@ -201,7 +304,6 @@ async function _initializeDuckDB(): Promise<duckdb.AsyncDuckDB> {
   const db = new duckdb.AsyncDuckDB(logger, worker);
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
   URL.revokeObjectURL(worker_url);
-  DUCK_DB_INITIALIZED = true;
   return db;
 }
 
@@ -217,101 +319,23 @@ async function _addTableToDuckDB(db: duckdb.AsyncDuckDB, tableName: string) {
 }
 
 
-// TODO 2025-01-15: the input type to this function mirrors PerspectiveFilters in Python.
 async function _getDuckDBQuery(
-  { tableName, filter_rules: filter_rules, forDownload = false }
-    : { tableName: string, filter_rules: Array<FilterRule>, forDownload?: boolean }
-): Promise<{ statement: string, count_statement: string, values: Array<any> }> {
+  { tableName, filters, page = 1, perPage = 10000 }
+    : { tableName: string, filters: Array<Filter>, page?: number, perPage?: number }
+): Promise<QuerySpec> {
   /**
    * Get DuckDB query from the backend, based on the filter rules & what table we're looking at.
    */
   const params = new URLSearchParams(
-    { perspective_filters: JSON.stringify({ tableName: `${tableName}.parquet`, filter_rules }), forDownload: JSON.stringify(forDownload) }
+    {
+      name: `${tableName}.parquet`,
+      filters: JSON.stringify(filters),
+      page: page.toString(),
+      perPage: perPage.toString()
+    }
   );
   const resp = await fetch("/api/duckdb?" + params);
   const query = await resp.json();
-  console.log("query", query);
+  console.log("QuerySpec:", query);
   return query
-}
-
-
-async function _resetCounters() {
-  const displayedRows = document.getElementById("displayed-rows");
-  const matchingRows = document.getElementById("matching-rows");
-  if (displayedRows !== null) {
-    displayedRows.innerText = "???";
-  }
-  if (matchingRows !== null) {
-    matchingRows.innerText = "???";
-  }
-}
-
-
-async function _updateCounters(displayedRowCount: number, matchingRowCount: number) {
-  const displayedRows = document.getElementById("displayed-rows");
-  const matchingRows = document.getElementById("matching-rows");
-  console.log(`Got ${displayedRowCount}/${matchingRowCount} rows`);
-  const isIncompletePreview = matchingRowCount > displayedRowCount;
-  if (displayedRows !== null) {
-    displayedRows.innerText = `${displayedRowCount.toLocaleString()}`;
-    if (isIncompletePreview) {
-      displayedRows.classList.add("has-text-warning");
-    } else {
-      displayedRows.classList.remove("has-text-warning");
-    }
-  }
-  if (matchingRows !== null) {
-    matchingRows.innerText = `${matchingRowCount.toLocaleString()}`;
-    if (isIncompletePreview) {
-      matchingRows.classList.add("has-text-warning");
-    } else {
-      matchingRows.classList.remove("has-text-warning");
-    }
-  }
-}
-
-
-async function _getTableDataForViewer(
-  tableName: string, viewer: PerspectiveViewerElement, c: duckdb.AsyncDuckDBConnection, forDownload: boolean = false
-): Promise<arrow.Table> {
-  /**
-   * Get the dang data:
-   * 
-   * 1. get filter state from Perspective
-   * 2. get DuckDB query from server, based on filter state
-   * 3. run both the "get a sample of data" and the "count data rows" queries in DuckDB
-   * 4. update the row counters
-   */
-  // Turn filters from Perspective state into the shape Python server expects
-  const { filter: rawFilter } = await viewer.save();
-  const filter = rawFilter.filter((e: Array<string>) => e[2] !== null);
-  let filterRules: Array<FilterRule> = [];
-  if (filter.length > 0) {
-    const schema = await TABLE.schema();
-    filterRules = filter.map(
-      ([col, op, val]: [string, string, string]) => {
-        if (schema[col] == "datetime") {
-
-        }
-        return { "filter": [col, op, val], "type": schema[col] };
-      }
-    );
-  }
-
-  // TODO 2025-01-15 this shape mirrors python QuerySpec, should define that somewhere too.
-  const { statement, count_statement: countStatement, values: filterVals } = await _getDuckDBQuery(
-    { tableName, filter_rules: filterRules, forDownload: forDownload }
-  );
-  const stmt = await c.prepare(statement);
-  const counter = await c.prepare(countStatement);
-  LOADING_STATE_DEBOUNCE = window.setTimeout(() => {
-    PREVIEW_PANEL.classList.add("is-skeleton")
-  }, 500);
-  const [countResult, newData] = await Promise.all(
-    [counter.query(...filterVals), stmt.query(...filterVals)]
-  );
-  window.clearTimeout(LOADING_STATE_DEBOUNCE);
-  const matchingRowCount = countResult?.getChild("count_star()")?.get(0);
-  _updateCounters(newData.numRows, matchingRowCount);
-  return newData;
 }

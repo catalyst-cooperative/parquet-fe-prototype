@@ -1,7 +1,7 @@
 """Generate DuckDB queries."""
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+import itertools
 
 from pydantic import BaseModel
 
@@ -12,27 +12,16 @@ def _camelize(string: str) -> str:
     return words[0] + "".join(word.capitalize() for word in words[1:])
 
 
-class FilterRule(BaseModel):
-    """To successfully translate a filter into DuckDB SQL, we need to know the
-    type of the field as well as the actual field name / operation /
-    contents."""
+class Filter(BaseModel):
+    """Represent a filter.
 
-    type: str
-    # TODO 2025-01-15 probably turn this into name/op/value fields instead of a
-    # list that relies on position; this will involve translating the list that
-    # Perspective spits out into this structure.
-    filter: tuple[str, str, str | int | float | bool]
+    Some operations have two values (between) so we need two value slots."""
 
-    class Config:
-        alias_generator = _camelize
-        populate_by_name = True
-
-
-class PerspectiveFilters(BaseModel):
-    """What you need from Perspective to generate a DuckDB query."""
-
-    table_name: str
-    filter_rules: list[FilterRule]
+    field_name: str
+    field_type: str
+    operation: str
+    value: str | int | float | bool | None = None
+    value_to: str | int | float | bool | None = None
 
     class Config:
         alias_generator = _camelize
@@ -49,46 +38,48 @@ class QuerySpec:
     values: list
 
 
-def _filter_rules_to_where(filter_rules: list[FilterRule]) -> tuple[str, list]:
+def __ag_filters_to_where(filters: list[Filter]) -> tuple[str, list]:
     """Convert FilterRules to a WHERE clause."""
     placeholder_casts = {"date": "?::DATE", "datetime": "epoch_ms(?::BIGINT)"}
     clause_templates = {
-        "==": "{col} = {placeholder}",
-        "begins with": "STARTS_WITH({col}, {placeholder})",
-        "contains": "CONTAINS({col}, {placeholder})",
-        "ends with": "ENDS_WITH({col}, {placeholder})",
-        "is null": "{col} {op}",
-        "is not null": "{col} {op}",
+        "equals": "{col} = {placeholder}",
+        "notequal": "{col} != {placeholder}",
+        "greaterthan": "{col} > {placeholder}",
+        "greaterthanorequal": "{col} >= {placeholder}",
+        "lessthan": "{col} < {placeholder}",
+        "lessthanorequal": "{col} <= {placeholder}",
+        "inrange": "{col} BETWEEN {placeholder} AND {placeholder}",
+        "contains": "{col} ILIKE CONCAT('%', {placeholder}, '%')",
+        "notcontains": "{col} NOT ILIKE CONCAT('%', {placeholder}, '%')",
+        "startswith": "STARTS_WITH({col}, {placeholder})",
+        "endswith": "ENDS_WITH({col}, {placeholder})",
+        "blank": "{col} IS NULL",
+        "notblank": "{col} IS NOT NULL",
         "default": "{col} {op} {placeholder}",
     }
 
-    # ignore `foo == null` filters - when you first drag a column into the
-    # 'where' section, that is what automatically applies. would often cause
-    # spurious empty return sets.
-    filters_to_apply = [f for f in filter_rules if f.filter[1:] != ("==", None)]
-
     where_clauses = ["true"]
-    for filter_rule in filters_to_apply:
-        placeholder = placeholder_casts.get(filter_rule.type, "?")
-        col, op, _ = filter_rule.filter
+    for filter in filters:
+        placeholder = placeholder_casts.get(filter.field_type, "?")
+        col = filter.field_name
+        op = filter.operation.lower()
+
         clause_template = clause_templates.get(op, clause_templates["default"])
         where_clauses.append(
             clause_template.format(col=col, op=op, placeholder=placeholder)
         )
 
-    vals = [
-        f.filter[2]
-        for f in filters_to_apply
-        if f.filter[1] not in {"is null", "is not null"}
-    ]
+    possible_vals = itertools.chain.from_iterable(
+        (f.value, f.value_to) for f in filters
+    )
+    vals = [v for v in possible_vals if v is not None]
 
     return " AND ".join(where_clauses), vals
 
 
-def perspective_to_duckdb(perspective_filters: PerspectiveFilters) -> QuerySpec:
-    """Turn perspective filters into a set of DuckDB queries for the frontend to run."""
-    where, vals = _filter_rules_to_where(perspective_filters.filter_rules)
-    table_name = perspective_filters.table_name
-    query = f"SELECT * FROM {table_name} WHERE {where}"
-    count_query = f"SELECT COUNT(*) FROM {table_name} WHERE {where} LIMIT 1"
+def ag_grid_to_duckdb(name: str, filters: list[Filter]) -> QuerySpec:
+    """Turn tabulator filters into a set of DuckDB queries for the frontend to run."""
+    where, vals = __ag_filters_to_where(filters)
+    query = f"SELECT * FROM {name} WHERE {where}"
+    count_query = f"SELECT COUNT(*) FROM {name} WHERE {where} LIMIT 1"
     return QuerySpec(statement=query, count_statement=count_query, values=vals)

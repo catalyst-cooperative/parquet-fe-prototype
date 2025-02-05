@@ -5,6 +5,7 @@
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <script type="module" src="{{ url_for('static', filename='index.js') }}"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">
+    <link href="https://unpkg.com/tabulator-tables/dist/css/tabulator.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}" />
 </head>
 <title>PUDL Data Dictionary
@@ -42,7 +43,11 @@
   </div>
 </nav>
 
-<div class="columns container is-fluid is-flex-grow-1">
+<div
+  id="app"
+  class="columns container is-fluid is-flex-grow-1"
+  x-data = "tableState"
+  >
     <div class="data-dictionary column my-3">
         <input
             class="input is-medium block"
@@ -59,22 +64,43 @@
             {% include 'partials/search_results.html' %}
         </div>
     </div>
-    <div class="preview-panel box column is-two-thirds is-hidden" data-theme="dark">
+    <div
+      class="preview-panel box column is-two-thirds"
+      x-show="showPreview"
+      x-transition
+      >
         <div class="level">
           <div class="level-left">
-            <h2 id="table-name" class="title is-4 level-item my-auto">{{ table }}</h2>
+            <h2 id="table-name" class="title is-4 level-item my-auto" x-text="tableName ? tableName : ''"></h2>
           </div>
           <div class="level-right">
-            <button class="button level-item is-primary" id="csv-download">Download as CSV</button>
-            <button class="delete level-item" onclick="closePreview()"></button>
+            <button
+              class="button level-item is-primary"
+              :disabled="exporting || (numRowsMatched > 5*csvExportPageSize)"
+              @click="exportCsv"
+              :class="{'is-loading': exporting}"
+              x-text="`Export ${numRowsMatched?.toLocaleString()} rows as ${(numRowsMatched < csvExportPageSize) ? 'a CSV' : `${Math.ceil(numRowsMatched / csvExportPageSize)} CSVs`}`"
+              x-show="numRowsMatched !== null"></button>
+            <button class="delete level-item" @click="showPreview = false;"></button>
           </div>
         </div>
-        <h3 id="row-counter" class="subtitle is-6">Showing <span id="displayed-rows" class="has-text-weight-bold">???</span> rows out of <span id="matching-rows" class="has-text-weight-bold">???</span> rows that match your filters</h3>
-        <div class="data-table">
-            <perspective-viewer
-                settings="true"
-            ></perspective-viewer>
-        </div>
+        <h3
+          x-show="numRowsMatched"
+          class="subtitle is-6">
+          Showing 
+          <span
+            class="has-text-weight-bold"
+            x-text="numRowsDisplayed.toLocaleString()"
+            ></span>
+          rows out of 
+          <span
+            class="has-text-weight-bold"
+            :class="{'has-text-warning': numRowsDisplayed < numRowsMatched}"
+            x-text="numRowsMatched?.toLocaleString()"
+            ></span>
+          rows that match your filters
+        </h3>
+        <div id="data-table"></div>
     </div>
 </div>
 </div>

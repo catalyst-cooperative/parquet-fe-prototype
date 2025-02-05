@@ -4,8 +4,8 @@
     <h2 class="title is-4 level-left">{{r.name}}</h2>
   </div>
   <div class="block">
-    {% if current_user.is_authenticated %}
-    <button class="button is-primary preview-button" onclick="initializePreview('{{ r.name }}', this)">Preview</button>
+    {% if current_user.is_authenticated or config['LOGIN_DISABLED'] %}
+    <button class="button is-primary preview-button" :disabled="db === null" @click="showPreview = true; tableName = '{{r.name}}'">Preview</button>
     {% else %}
     <a class="button is-primary preview-button" href="/login?next={{ url_for(request.endpoint, **request.args) }}">Log in to preview</a>
     {% endif %}
@@ -15,18 +15,19 @@
     {{r.description | safe}}
   </div>
   <div class="block">
-    <h3 class="title is-5">Columns</h3>
-    {% for f in r.schema.fields %}
-    <div class="mb-2">
-      <div>
-        <strong>{{ f.name }}</strong>
+    <details>
+      <summary class="title is-5">Columns</summary>
+      {% for f in r.schema.fields %}
+      <div class="mb-2">
+        <div>
+          <strong>{{ f.name }}</strong>
+        </div>
+        <div class="pl-4">
+              {{ f.description }}
+        </div>
       </div>
-      <div class="pl-4">
-            {{ f.description }}
-      </div>
-    </div>
     {% endfor %}
-    </table>
+    </details>
   </div>
 </div>
 {% endfor %}

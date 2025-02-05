@@ -16,7 +16,7 @@ from flask_sqlalchemy import SQLAlchemy
 
 from parquet_fe_prototype import datapackage_shim
 from parquet_fe_prototype.models import db, User
-from parquet_fe_prototype.duckdb_query import perspective_to_duckdb, PerspectiveFilters
+from parquet_fe_prototype.duckdb_query import ag_grid_to_duckdb, Filter
 from parquet_fe_prototype.search import initialize_index, run_search
 
 AUTH0_DOMAIN = os.getenv("PUDL_VIEWER_AUTH0_DOMAIN")
@@ -99,7 +99,11 @@ def create_app():
     app = Flask("parquet_fe_prototype", instance_relative_config=True)
     if os.getenv("IS_CLOUD_RUN"):
         app.config["PREFERRED_URL_SCHEME"] = "https"
-    app.config.from_mapping(SECRET_KEY=os.getenv("PUDL_VIEWER_SECRET_KEY"))
+    app.config.from_mapping(
+        SECRET_KEY=os.getenv("PUDL_VIEWER_SECRET_KEY"),
+        TEMPLATES_AUTO_RELOAD=True,
+        LOGIN_DISABLED=os.getenv("PUDL_VIEWER_LOGIN_DISABLED", False),
+    )
 
     auth0 = __init_auth0(app)
 
@@ -208,12 +212,16 @@ def create_app():
                 both query the data and also get a full row-count of the result
                 set.
         """
-        filter_json = request.args.get("perspective_filters")
-        perspective_filters = PerspectiveFilters.model_validate_json(filter_json)
-        duckdb_query = perspective_to_duckdb(perspective_filters)
-        for_download = json.loads(request.args.get("forDownload"))
-        if not for_download:
-            duckdb_query.statement += " LIMIT 10000"
+        name = request.args.get("name")
+        filters = [
+            Filter.model_validate(f)
+            for f in json.loads(request.args.get("filters", "[]"))
+        ]
+        duckdb_query = ag_grid_to_duckdb(name=name, filters=filters)
+        page = int(request.args.get("page", 1))
+        per_page = int(request.args.get("perPage", 10_000))
+        offset = (page - 1) * per_page
+        duckdb_query.statement += f" LIMIT {per_page} OFFSET {offset}"
         return asdict(duckdb_query)
 
     return app
