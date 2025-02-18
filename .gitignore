@@ -5,3 +5,4 @@ node_modules/
 .hypothesis/
 .env
 .envrc
+**/.DS_Store

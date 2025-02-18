@@ -2,7 +2,6 @@
 
 import json
 import os
-import yaml
 from dataclasses import asdict
 from pathlib import Path
 from urllib.parse import quote
@@ -13,11 +12,12 @@ from flask_htmx import HTMX
 from flask_login import LoginManager, login_required, login_user, logout_user
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
+from frictionless import Package
 
-from parquet_fe_prototype import datapackage_shim
 from parquet_fe_prototype.models import db, User
 from parquet_fe_prototype.duckdb_query import ag_grid_to_duckdb, Filter
 from parquet_fe_prototype.search import initialize_index, run_search
+from parquet_fe_prototype.utils import clean_descriptions
 
 AUTH0_DOMAIN = os.getenv("PUDL_VIEWER_AUTH0_DOMAIN")
 CLIENT_ID = os.getenv("PUDL_VIEWER_AUTH0_CLIENT_ID")
@@ -76,11 +76,9 @@ def __build_search_index(app):
     We currently convert a static YAML file into a Frictionless datapackage,
     then pass that in.
     """
-    # TODO: in the future, just generate this metadata from PUDL.
-    metadata_path = Path(app.root_path) / "internal" / "metadata.yml"
-    with open(metadata_path) as f:
-        datapackage = datapackage_shim.metadata_to_datapackage(yaml.safe_load(f))
-
+    # TODO: in the future, download this datapackage from nightly build.
+    metadata_path = Path(app.root_path) / "internal" / "pudl_datapackage.json"
+    datapackage = clean_descriptions(Package.from_descriptor(metadata_path))
     index = initialize_index(datapackage)
     return datapackage, index
 
