@@ -8,14 +8,11 @@ from docutils.core import publish_parts
 
 SPHINX_TAGS = re.compile(r":(?:ref|func|doc):`([^`]+)`")
 
-EXTRA_HTML_TAGS = re.compile(r"</?(main|p)>")
-
 
 def rst_to_html(rst: str) -> str:
     cleaned_rst = re.sub(SPHINX_TAGS, r"``\1``", rst)
     # this surrounds the HTML we want with a <main> and a <p> tag. strip those
-    html_main = publish_parts(cleaned_rst, writer_name="html5")["html_body"]
-    return re.sub(EXTRA_HTML_TAGS, "", html_main)
+    return publish_parts(cleaned_rst, writer_name="html5")["html_body"]
 
 
 def clean_descriptions(datapackage: Package) -> Package:
