@@ -19,4 +19,5 @@ dependencies = [
     "psycopg2-binary>=2.9.10",
     "authlib>=1.4.0",
     "docutils>=0.21.2",
+    "structlog>=25.1.0",
 ]

@@ -6,6 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 from urllib.parse import quote
 
+import structlog
 from authlib.integrations.flask_client import OAuth
 from flask import Flask, redirect, request, render_template, session, url_for
 from flask_htmx import HTMX
@@ -22,6 +23,14 @@ from parquet_fe_prototype.utils import clean_descriptions
 AUTH0_DOMAIN = os.getenv("PUDL_VIEWER_AUTH0_DOMAIN")
 CLIENT_ID = os.getenv("PUDL_VIEWER_AUTH0_CLIENT_ID")
 CLIENT_SECRET = os.getenv("PUDL_VIEWER_AUTH0_CLIENT_SECRET")
+
+structlog.configure(
+    processors=[
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.JSONRenderer(),
+    ]
+)
+log = structlog.get_logger()
 
 
 def __init_auth0(app: Flask):
@@ -189,6 +198,7 @@ def create_app():
         """
         template = "partials/search_results.html" if htmx else "search.html"
         query = request.args.get("q")
+        log.info("search", url=request.path, query=query)
         if query:
             resources = run_search(ix=index, raw_query=query)
         else:
@@ -217,7 +227,17 @@ def create_app():
         ]
         duckdb_query = ag_grid_to_duckdb(name=name, filters=filters)
         page = int(request.args.get("page", 1))
-        per_page = int(request.args.get("perPage", 10_000))
+        DEFAULT_PREVIEW_PAGE = 10_000
+        DEFAULT_CSV_EXPORT_PAGE = 1_000_000
+        per_page = int(request.args.get("perPage", DEFAULT_PREVIEW_PAGE))
+        if per_page == DEFAULT_PREVIEW_PAGE:
+            event = "duckdb_preview"
+        elif per_page == DEFAULT_CSV_EXPORT_PAGE:
+            event = "duckdb_csv"
+        else:
+            event = "duckdb_other"
+
+        log.info(event, url=request.path, params=dict(request.args))
         offset = (page - 1) * per_page
         duckdb_query.statement += f" LIMIT {per_page} OFFSET {offset}"
         return asdict(duckdb_query)
