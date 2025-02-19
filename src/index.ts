@@ -55,10 +55,13 @@ interface UnitializedTableState extends AlpineComponent<{}> {
   showPreview: boolean;
   csvExportPageSize: number;
   exporting: boolean;
+  loading: boolean;
   gridApi: GridApi | null;
   db: duckdb.AsyncDuckDB | null;
   conn: duckdb.AsyncDuckDBConnection | null;
   exportCsv: () => void;
+  csvAllowed: () => boolean;
+  csvText: () => string;
 }
 
 interface TableState extends AlpineComponent<{}> {
@@ -72,10 +75,13 @@ interface TableState extends AlpineComponent<{}> {
   showPreview: boolean;
   csvExportPageSize: number;
   exporting: boolean;
+  loading: boolean;
   gridApi: GridApi;
   db: duckdb.AsyncDuckDB;
   conn: duckdb.AsyncDuckDBConnection;
   exportCsv: () => void;
+  csvAllowed: () => boolean;
+  csvText: () => string;
 }
 
 const data: UnitializedTableState = {
@@ -86,6 +92,7 @@ const data: UnitializedTableState = {
   showPreview: false,
   csvExportPageSize: 1_000_000,
   exporting: false,
+  loading: false,
   gridApi: null,
   db: null,
   conn: null,
@@ -110,7 +117,12 @@ const data: UnitializedTableState = {
     }
     const host = document.getElementById("data-table")!;
     this.gridApi = createGrid(host, gridOptions);
-    this.$watch("tableName", () => refreshTable(this as TableState));
+    this.$watch("tableName", async () => {
+      this.loading = true;
+      this.gridApi?.setFilterModel({});
+      await refreshTable(this as TableState);
+      this.loading = false;
+    });
   },
 
   async exportCsv() {
@@ -127,6 +139,21 @@ const data: UnitializedTableState = {
       await exportPage(gridApi, filename, { conn, tableName, page: i, perPage: csvExportPageSize, filters: getFilters(gridApi) })
     }
     state.exporting = false;
+  },
+
+  csvAllowed() {
+    return this.numRowsMatched <= 5 * this.csvExportPageSize;
+  },
+
+  csvText() {
+    const numPages = Math.ceil(this.numRowsMatched / this.csvExportPageSize);
+    if (!this.csvAllowed()) {
+      return "Too many rows. Filter to a smaller subset.";
+    }
+    if (numPages === 1) {
+      return `Export ${this.numRowsMatched?.toLocaleString()} rows as CSV`;
+    }
+    return `Export ${this.numRowsMatched?.toLocaleString()} rows as ${numPages.toLocaleString()} CSVs`;
   }
 };
 
@@ -148,6 +175,8 @@ async function refreshTable(state: TableState) {
    */
   const { tableName, conn, db, gridApi, addedTables } = state;
 
+  gridApi.setGridOption('loading', true);
+
   if (tableName && !addedTables.has(tableName)) {
     await _addTableToDuckDB(db, tableName);
     addedTables.add(tableName);
@@ -159,6 +188,7 @@ async function refreshTable(state: TableState) {
 
   state.numRowsMatched = numRowsMatched;
   state.numRowsDisplayed = arrowData.numRows;
+  gridApi.setGridOption('loading', false);
 }
 
 function getFilters(gridApi: GridApi): Array<Filter> {

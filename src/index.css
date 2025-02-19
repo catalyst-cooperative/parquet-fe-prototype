@@ -1,5 +1,9 @@
 .full-app {
-  height: 100vh;
+  max-height: 100vh;
+}
+
+#app {
+  min-height: 0;
 }
 
 .navbar {
@@ -7,7 +11,6 @@
 }
 
 .data-dictionary {
-  max-height: calc(100vh - 5.5rem);
   overflow-y: scroll;
 }
 
@@ -16,6 +19,6 @@
   overflow: wrap;
 }
 
-#data-table {
-  height: 500px;
+.preview-panel {
+  display: flex;
 }
