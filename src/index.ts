@@ -116,7 +116,9 @@ const data: UnitializedTableState = {
     await this.conn.query("SET default_collation='nocase';");
 
     const gridOptions: GridOptions = {
-      onFilterChanged: async () => refreshTable(this as TableState)
+      onFilterChanged: async () => refreshTable(this as TableState),
+      tooltipShowDelay: 500,
+      tooltipHideDelay: 15000
     }
     const host = document.getElementById("data-table")!;
     this.gridApi = createGrid(host, gridOptions);
@@ -301,7 +303,15 @@ function arrowTableToAgGridOptions(table: arrow.Table): GridOptions {
    * (i.e. datetimes, categoricals) we'll need to set them in typeOpts.
    */
   const typeOpts = new Map([...TIMESTAMP_TYPE_IDS].map(tid => [tid, { valueFormatter: p => p.value?.toISOString() }]));
-  const defaultOpts = { filter: true, filterParams: { maxNumConditions: 1, buttons: ["apply", "clear", "reset", "cancel"] } };
+  // TODO 2025-02-19: it would be nice to add the column descriptions into the header tooltip. might want to grab the datapackage.json for that.
+  const defaultOpts = {
+    filter: true,
+    filterParams: { maxNumConditions: 1, buttons: ["apply", "clear", "reset"] },
+    tooltipValueGetter: ({ value }) => {
+      const isLongString = typeof value === "string" && value.length > 20;
+      return isLongString ? value : null;
+    },
+  };
 
   const schema = table.schema;
   const columnDefs = schema.fields.map(
