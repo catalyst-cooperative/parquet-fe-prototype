@@ -2,25 +2,19 @@
     <a class="navbar-brand" href="/">
         <img src="{{url_for('static', filename='img/pole-cat.svg')}}" alt="logo: a black cat on an electricity pole"
             style="height: 3em; width: auto">
-        <h1 class="title my-auto px-2 logo">pudl <span class="subtitle is-6 has-text-grey-light">beta</span></h1>
+        <h1 class="title my-auto px-2 logo">pudl</h1>
     </a>
     <div class="navbar-menu">
         <div class="navbar-start">
-            <a class="navbar-item" href="/">
-                Home
-            </a>
             <a class="navbar-item" href="/search">
                 Search
             </a>
             <a class="navbar-item" href="https://catalystcoop-pudl.readthedocs.io/en/latest/data_sources/index.html">
                 Data source documentation
             </a>
+            <a class="navbar-item" href="https://forms.gle/ohzyKRoQutqxY3WZ6">Submit feedback</a>
         </div>
         <div class="navbar-end">
-            <div class="notification py-2 my-1">
-                Welcome! The PUDL viewer is in beta right now - if you run into anything we'd love your <a
-                    class="is-inline" href="https://forms.gle/ohzyKRoQutqxY3WZ6">feedback</a>!
-            </div>
             {% if current_user.is_authenticated %}
             <a class="button mx-2 my-1 py-2 is-light" href="/logout">
                 Log out of {{ current_user.username }}
@@ -33,3 +27,4 @@
         </div>
     </div>
 </nav>
+</div>

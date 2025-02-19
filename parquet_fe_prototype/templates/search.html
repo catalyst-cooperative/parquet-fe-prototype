@@ -3,6 +3,14 @@
 {% block title %}PUDL Data Dictionary{% endblock %}
 
 {% block content %}
+
+<div class="container is-fluid">
+  <div class="notification has-background-info-light my-3" x-data="{open: true}" x-show="open">
+    Welcome! The PUDL viewer is in beta right now - we'd love your <a class="is-inline"
+      href="https://forms.gle/ohzyKRoQutqxY3WZ6">feedback</a>!
+    <button class="delete" @click="open = !open"></button>
+  </div>
+</div>
 <div id="app" class="columns container is-fluid is-flex-grow-1" x-data="tableState">
   <div class="data-dictionary column my-3 is-flex is-flex-direction-column">
     <input class="input is-medium block" type="text" name="q" hx-get="/search" hx-trigger="input changed delay:300ms"
