@@ -5,11 +5,15 @@
   </div>
   <div class="block">
     {% if current_user.is_authenticated or config['LOGIN_DISABLED'] %}
-    <button class="button is-primary preview-button" :disabled="db === null" :class="{'is-loading': loading}" @click="showPreview = true; tableName = '{{r.name}}'">Preview / export as CSV</button>
+    <button class="button is-primary preview-button" :disabled="db === null" :class="{'is-loading': loading}"
+      @click="showPreview = true; tableName = '{{r.name}}'">Preview / export as CSV</button>
     {% else %}
-    <a class="button is-primary preview-button" href="/login?next={{ url_for(request.endpoint, **request.args) }}">Log in or sign up to preview / export as CSV</a>
+    <a class="button is-primary preview-button" href="/login?next={{ url_for(request.endpoint, **request.args) }}">Log
+      in or sign up to preview / export as CSV</a>
     {% endif %}
-    <a class="button is-link is-light" href="https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/{{ r.name }}.parquet">Download full table as Parquet</a>
+    <a class="button is-link is-light"
+      href="https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/{{ r.name }}.parquet">Download full table as
+      Parquet</a>
   </div>
   <div class="level">
     {{r.description | safe}}
@@ -23,10 +27,10 @@
           <strong>{{ f.name }}</strong>
         </div>
         <div class="pl-4">
-              {{ f.description | safe }}
+          {{ f.description | safe }}
         </div>
       </div>
-    {% endfor %}
+      {% endfor %}
     </details>
   </div>
 </div>
