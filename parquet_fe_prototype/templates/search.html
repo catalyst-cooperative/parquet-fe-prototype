@@ -1,87 +1,39 @@
-<!DOCTYPE html>
+{% extends "base.html" %}
 
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta charset="utf-8">
-  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-  <script type="module" src="{{ url_for('static', filename='index.js') }}"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">
-  <link href="https://unpkg.com/tabulator-tables/dist/css/tabulator.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}" />
-</head>
-<title>PUDL Data Dictionary
-</title>
+{% block title %}PUDL Data Dictionary{% endblock %}
 
-<body>
-
-  <div class="full-app is-flex is-flex-direction-column">
-    <nav class="navbar">
-      <a class="navbar-brand" href="/">
-        <img src="{{url_for('static', filename='img/pole-cat.svg')}}" alt="Logo: a black cat on an electricity pole"
-          style="height: 3em; width: auto">
-        <h1 class="title my-auto px-2 logo">PUDL <span class="subtitle is-6 has-text-grey-light">beta</span></h1>
-      </a>
-      <div class="navbar-menu">
-        <div class="navbar-start">
-          <a class="navbar-item" href="/">
-            Home
-          </a>
-          <a class="navbar-item" href="/search">
-            Search
-          </a>
-          <a class="navbar-item" href="https://catalystcoop-pudl.readthedocs.io/en/latest/data_sources/index.html">
-            Data source documentation
-          </a>
-        </div>
-        <div class="navbar-end">
-          <div class="notification py-2 my-1">
-            Welcome! The PUDL viewer is in beta right now - if you run into anything we'd love your <a class="is-inline"
-              href="https://forms.gle/ohzyKRoQutqxY3WZ6">feedback</a>!
-          </div>
-          {% if current_user.is_authenticated %}
-          <a class="button mx-2 my-1 py-2 is-light" href="/logout">
-            Log out of {{ current_user.username }}
-          </a>
-          {% else %}
-          <a class="button mx-2 my-1 py-2 is-primary" href="/login">
-            Log in or sign up
-          </a>
-          {% endif %}
-        </div>
-      </div>
-    </nav>
-
-    <div id="app" class="columns container is-fluid is-flex-grow-1" x-data="tableState">
-      <div class="data-dictionary column my-3 is-flex is-flex-direction-column">
-        <input class="input is-medium block" type="text" name="q" hx-get="/search"
-          hx-trigger="input changed delay:300ms" hx-target="#search-results" hx-replace-url="true"
-          placeholder="Search..." {% if query %}value="{{ query }}" {% endif %} />
-        <div class="data-dictionary is-flex-grow-1" id="search-results">
-          {% include 'partials/search_results.html' %}
-        </div>
-      </div>
-      <div class="preview-panel mt-3 mb-5 box column is-two-thirds is-flex-direction-column" x-show="showPreview"
-        x-transition>
-        <div class="level">
-          <div class="level-left">
-            <h2 id="table-name" class="title is-4 level-item my-auto" x-text="tableName ? tableName : ''"></h2>
-          </div>
-          <div class="level-right">
-            <button class="button level-item is-primary" :disabled="exporting || !csvAllowed()" @click="exportCsv"
-              :class="{'is-loading': exporting}" x-text="csvText()" x-show="numRowsMatched !== null"></button>
-            <button class="delete level-item" @click="showPreview = false;"></button>
-          </div>
-        </div>
-        <h3 x-show="numRowsMatched && !loading" class="subtitle is-6">
-          Showing
-          <span class="has-text-weight-bold" x-text="numRowsDisplayed.toLocaleString()"></span>
-          rows out of
-          <span class="has-text-weight-bold" :class="{'has-text-warning': numRowsDisplayed < numRowsMatched}"
-            x-text="numRowsMatched?.toLocaleString()"></span>
-          rows that match your filters
-        </h3>
-        <div id="data-table" class="is-flex-grow-1" x-show="!loading"></div>
-      </div>
+{% block content %}
+<div id="app" class="columns container is-fluid is-flex-grow-1" x-data="tableState">
+  <div class="data-dictionary column my-3 is-flex is-flex-direction-column">
+    <input class="input is-medium block" type="text" name="q" hx-get="/search" hx-trigger="input changed delay:300ms"
+      hx-target="#search-results" hx-replace-url="true" placeholder="Search..." {% if query %}value="{{ query }}" {%
+      endif %} />
+    <div class="data-dictionary is-flex-grow-1" id="search-results">
+      {% include 'partials/search_results.html' %}
     </div>
   </div>
-</body>
+  <div class="preview-panel mt-3 mb-5 box column is-two-thirds is-flex-direction-column" x-show="showPreview"
+    x-transition>
+    <div class="level">
+      <div class="level-left">
+        <h2 id="table-name" class="title is-4 level-item my-auto" x-text="tableName ? tableName : ''"></h2>
+      </div>
+      <div class="level-right">
+        <button class="button level-item is-primary" :disabled="exporting || !csvAllowed()" @click="exportCsv"
+          :class="{'is-loading': exporting}" x-text="csvText()" x-show="numRowsMatched !== null"></button>
+        <button class="delete level-item" @click="showPreview = false;"></button>
+      </div>
+    </div>
+    <h3 x-show="numRowsMatched && !loading" class="subtitle is-6">
+      Showing
+      <span class="has-text-weight-bold" x-text="numRowsDisplayed.toLocaleString()"></span>
+      rows out of
+      <span class="has-text-weight-bold" :class="{'has-text-warning': numRowsDisplayed < numRowsMatched}"
+        x-text="numRowsMatched?.toLocaleString()"></span>
+      rows that match your filters
+    </h3>
+    <div id="data-table" class="is-flex-grow-1" x-show="!loading"></div>
+  </div>
+</div>
+
+{% endblock %}

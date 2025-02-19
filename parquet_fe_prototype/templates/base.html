@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script type="module" src="{{ url_for('static', filename='index.js') }}"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}" />
+    <title>{% block title %}PUDL Viewer {% endblock %}</title>
+</head>
+
+<body>
+
+    <div class="full-app is-flex is-flex-direction-column">
+        {% include 'partials/navbar.html' %}
+
+        {% block content %}
+        {% endblock %}
+
+    </div>
+</body>
+
+</html>
