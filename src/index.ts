@@ -2,7 +2,7 @@ import * as duckdb from '@duckdb/duckdb-wasm';
 import * as arrow from 'apache-arrow';
 
 import { DATE_TS_TYPE_IDS, DATE_TYPE_IDS, TIMESTAMP_TYPE_IDS } from './constants';
-import { createGrid, ModuleRegistry, AllCommunityModule, GridApi, GridOptions } from 'ag-grid-community';
+import { createGrid, themeQuartz, colorSchemeDark, ModuleRegistry, AllCommunityModule, GridApi, GridOptions } from 'ag-grid-community';
 import Alpine, { AlpineComponent } from 'alpinejs';
 
 import "./index.css";
@@ -56,6 +56,7 @@ interface UnitializedTableState extends AlpineComponent<{}> {
   csvExportPageSize: number;
   exporting: boolean;
   loading: boolean;
+  darkMode: boolean;
   gridApi: GridApi | null;
   db: duckdb.AsyncDuckDB | null;
   conn: duckdb.AsyncDuckDBConnection | null;
@@ -76,6 +77,7 @@ interface TableState extends AlpineComponent<{}> {
   csvExportPageSize: number;
   exporting: boolean;
   loading: boolean;
+  darkMode: boolean;
   gridApi: GridApi;
   db: duckdb.AsyncDuckDB;
   conn: duckdb.AsyncDuckDBConnection;
@@ -93,6 +95,7 @@ const data: UnitializedTableState = {
   csvExportPageSize: 1_000_000,
   exporting: false,
   loading: false,
+  darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
   gridApi: null,
   db: null,
   conn: null,
@@ -123,6 +126,15 @@ const data: UnitializedTableState = {
       await refreshTable(this as TableState);
       this.loading = false;
     });
+
+    const setTheme = () => {
+      console.log("setting theme");
+      const darkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = darkMode ? themeQuartz.withPart(colorSchemeDark) : themeQuartz;
+      this.gridApi.setGridOption("theme", theme);
+    };
+    setTheme();
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', setTheme);
   },
 
   async exportCsv() {
