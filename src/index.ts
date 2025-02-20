@@ -213,10 +213,11 @@ function getFilters(gridApi: GridApi): Array<Filter> {
    * column we will have to handle this differently - i.e. we'll have to retool
    * the Filter type altogether.
    */
+  console.log(gridApi.getFilterModel());
   return Object.entries(gridApi.getFilterModel())
     .map(
-      ([fieldName, { filterType, type, filter, filterTo }]) => (
-        { fieldName, fieldType: filterType, operation: type, value: filter, valueTo: filterTo }
+      ([fieldName, { filterType, type, filter, filterTo, dateFrom, dateTo }]) => (
+        { fieldName, fieldType: filterType, operation: type, value: filter || dateFrom, valueTo: filterTo || dateTo }
       )
     );
 }
