@@ -20,4 +20,5 @@ dependencies = [
     "authlib>=1.4.0",
     "docutils>=0.21.2",
     "structlog>=25.1.0",
+    "requests>=2.32.3",
 ]

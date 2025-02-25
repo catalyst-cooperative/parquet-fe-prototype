@@ -475,6 +475,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pytest" },
     { name = "pyyaml" },
+    { name = "requests" },
     { name = "structlog" },
     { name = "whoosh" },
 ]
@@ -494,6 +495,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.10.3" },
     { name = "pytest", specifier = ">=8.3.4" },
     { name = "pyyaml", specifier = ">=6.0.2" },
+    { name = "requests", specifier = ">=2.32.3" },
     { name = "structlog", specifier = ">=25.1.0" },
     { name = "whoosh", specifier = ">=2.7.4" },
 ]

@@ -6,6 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 from urllib.parse import quote
 
+import requests
 import structlog
 from authlib.integrations.flask_client import OAuth
 from flask import Flask, redirect, request, render_template, session, url_for
@@ -86,8 +87,11 @@ def __build_search_index(app):
     then pass that in.
     """
     # TODO: in the future, download this datapackage from nightly build.
-    metadata_path = Path(app.root_path) / "internal" / "pudl_datapackage.json"
-    datapackage = clean_descriptions(Package.from_descriptor(metadata_path))
+    s3_url = "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/pudl_parquet_datapackage.json"
+
+    log.info(f"loading datapackage from {s3_url}")
+    datapackage_descriptor = requests.get(s3_url).json()
+    datapackage = clean_descriptions(Package.from_descriptor(datapackage_descriptor))
     index = initialize_index(datapackage)
     return datapackage, index
 
