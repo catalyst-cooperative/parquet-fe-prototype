@@ -1,7 +1,7 @@
 <nav class="navbar">
     <a class="navbar-brand" href="/">
         <img src="{{url_for('static', filename='img/pole-cat.svg')}}" alt="logo: a black cat on an electricity pole"
-            style="height: 3em; width: auto">
+            class="dark-mode-invert" style="height: 3em; width: auto">
         <h1 class="title my-auto px-2 logo">pudl</h1>
     </a>
     <div class="navbar-menu">
@@ -14,7 +14,7 @@
         </div>
         <div class="navbar-end">
             {% if current_user.is_authenticated %}
-            <a class="button mx-2 my-1 py-2 is-light" href="/logout">
+            <a class="button mx-2 my-1 py-2" href="/logout">
                 Log out of {{ current_user.username }}
             </a>
             {% else %}

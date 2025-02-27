@@ -118,7 +118,7 @@ const data: UnitializedTableState = {
     const gridOptions: GridOptions = {
       onFilterChanged: async () => refreshTable(this as TableState),
       tooltipShowDelay: 500,
-      tooltipHideDelay: 15000
+      tooltipHideDelay: 15000,
     }
     const host = document.getElementById("data-table")!;
     this.gridApi = createGrid(host, gridOptions);

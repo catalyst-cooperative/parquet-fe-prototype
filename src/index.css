@@ -22,3 +22,9 @@
 .preview-panel {
   display: flex;
 }
+
+@media (prefers-color-scheme: dark) {
+  .dark-mode-invert {
+    filter: invert(1);
+  }
+}
