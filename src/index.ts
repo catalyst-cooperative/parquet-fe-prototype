@@ -303,7 +303,33 @@ function arrowTableToAgGridOptions(table: arrow.Table): GridOptions {
    * TODO 2025-02-13: If we want to make a custom filter UI for specific types
    * (i.e. datetimes, categoricals) we'll need to set them in typeOpts.
    */
-  const typeOpts = new Map([...TIMESTAMP_TYPE_IDS].map(tid => [tid, { valueFormatter: p => p.value?.toISOString() }]));
+  const utcComparator = (filter, cell) => {
+    const filterUTC = filter.getTime() - filter.getTimezoneOffset() * 60_000;
+    return cell.getTime() - filterUTC;
+  };
+  const timestampOpts = new Map([...TIMESTAMP_TYPE_IDS].map(tid => [tid, {
+    valueFormatter: p => `${p.value?.toISOString().split(".")[0]}`,
+    filterParams: {
+      maxNumConditions: 1,
+      buttons: ["apply", "clear", "reset"],
+      comparator: utcComparator,
+      browserDatePicker: false,
+      dateFormat: "yyyy-MM-dd",
+    },
+  }]));
+
+  const dateOpts = new Map([...DATE_TYPE_IDS].map(tid => [tid, {
+    valueFormatter: p => p.value?.toISOString().split("T")[0],
+    filterParams: {
+      maxNumConditions: 1,
+      buttons: ["apply", "clear", "reset"],
+      comparator: utcComparator,
+      browserDatePicker: false,
+      dateFormat: "yyyy-MM-dd",
+    },
+  }]));
+  const typeOpts = new Map([...timestampOpts, ...dateOpts])
+
   // TODO 2025-02-19: it would be nice to add the column descriptions into the header tooltip. might want to grab the datapackage.json for that.
   const defaultOpts = {
     filter: true,
