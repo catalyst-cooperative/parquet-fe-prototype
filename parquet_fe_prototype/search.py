@@ -69,6 +69,6 @@ def run_search(ix: index, raw_query: str) -> list[Resource]:
         )
         query = parser.parse(raw_query)
         out_boost = Term("tag", "out", boost=2.0)
-        preliminary_penalty = Term("tag", "preliminary", boost=2.0)
+        preliminary_penalty = Term("tag", "preliminary", boost=-5.0)
         results = searcher.search(Or([query, out_boost, preliminary_penalty]))
         return [hit["original_object"] for hit in results]

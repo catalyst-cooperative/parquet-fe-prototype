@@ -203,10 +203,22 @@ def create_app():
         template = "partials/search_results.html" if htmx else "search.html"
         query = request.args.get("q")
         log.info("search", url=request.path, query=query)
+
+        def sort_resources_by_name(resource):
+            name = resource.name
+            if name.startswith("out"):
+                return 0
+            if name.startswith("core"):
+                return 1
+            if name.startswith("_out"):
+                return 2
+            if name.startswith("_core"):
+                return 3
+
         if query:
             resources = run_search(ix=index, raw_query=query)
         else:
-            resources = datapackage.resources
+            resources = sorted(datapackage.resources, key=sort_resources_by_name)
 
         return render_template(template, resources=resources, query=query)
 
