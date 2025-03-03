@@ -162,7 +162,7 @@ const data: UnitializedTableState = {
   csvText() {
     const numPages = Math.ceil(this.numRowsMatched / this.csvExportPageSize);
     if (!this.csvAllowed()) {
-      return "Too many rows to export to CSV - try filtering the data!";
+      return "Over export limit (5M rows) - try filtering!";
     }
     if (numPages === 1) {
       return `Export ${this.numRowsMatched?.toLocaleString()} rows as CSV`;
