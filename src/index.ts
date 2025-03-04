@@ -12,7 +12,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 interface Filter {
   /**
    * Describe one column filter. Mirrors FilterRule in the Python code.
-   * 
+   *
    * TODO 2025-01-15: Define these interfaces in one place - maybe with JSONSchema?
    */
   fieldName: string;
@@ -34,7 +34,7 @@ interface QuerySpec {
 interface QueryEndpointPayload {
   /**
    * This is what we need to actually get a query back from the server.
-   * 
+   *
    * TODO 2025-02-13: conn probably shouldn't be in here.
    */
   conn: duckdb.AsyncDuckDBConnection;
@@ -177,10 +177,10 @@ Alpine.start();
 async function refreshTable(state: TableState) {
   /**
    * Re-query the data given the current table state.
-   * 
+   *
    * TODO 2025-02-13 - since this mutates table state, maybe it should live in
    * the table state object too?
-   * 
+   *
    * - check if the table has been registered - if not, register it.
    * - grab filters, table name, and get arrowData + a count back.
    * - turn arrowData into gridOptions.
@@ -208,7 +208,7 @@ async function refreshTable(state: TableState) {
 function getFilters(gridApi: GridApi): Array<Filter> {
   /**
    * Convert GridApi filter model to a list of Filters.
-   * 
+   *
    * TODO 2025-02-13: if we start getting multiple filter conditions on each
    * column we will have to handle this differently - i.e. we'll have to retool
    * the Filter type altogether.
@@ -225,7 +225,7 @@ function getFilters(gridApi: GridApi): Array<Filter> {
 async function getAndCountData(params: QueryEndpointPayload) {
   /**
    * Get the data, and also count how many the full result would be.
-   * 
+   *
    * - get the DuckDB query
    * - run the main query and the count query on DuckDB
    * - return both
@@ -248,7 +248,7 @@ async function getAndCountData(params: QueryEndpointPayload) {
 async function getData(params: QueryEndpointPayload) {
   /**
    * Get the data, and also count how many the full result would be.
-   * 
+   *
    * - get the DuckDB query
    * - run the main query on DuckDB
    */
@@ -296,7 +296,7 @@ function arrowTableToAgGridOptions(table: arrow.Table): GridOptions {
   /**
    * Convert an Arrow table into something AG Grid can understand - a list of
    * records and a funny bespoke schema object (columnDefs).
-   * 
+   *
    * We have to set some different options based on the type information in
    * Arrow - i.e. date formatting.
    *

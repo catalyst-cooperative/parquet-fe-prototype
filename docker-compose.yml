@@ -29,7 +29,7 @@ services:
     ports:
       - target: 8080
         published: 8080
-  postgres: 
+  postgres:
     image: postgres:17
     environment:
       POSTGRES_DB: pudl_viewer
