@@ -17,6 +17,7 @@ from flask_sqlalchemy import SQLAlchemy
 from frictionless import Package
 
 from parquet_fe_prototype.models import db, User
+from parquet_fe_prototype.dash import initialize_dash
 from parquet_fe_prototype.duckdb_query import ag_grid_to_duckdb, Filter
 from parquet_fe_prototype.search import initialize_index, run_search
 from parquet_fe_prototype.utils import clean_descriptions
@@ -125,6 +126,8 @@ def create_app():
 
     login_manager = LoginManager()
     login_manager.init_app(app)
+
+    initialize_dash(app)
 
     datapackage, index = __build_search_index(app)
 
