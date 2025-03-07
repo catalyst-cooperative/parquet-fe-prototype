@@ -128,6 +128,30 @@ def create_app():
 
     datapackage, index = __build_search_index(app)
 
+    def sort_resources_by_name(resource):
+        name = resource.name
+
+        # make these tables show up first, by returning negative numbers.
+        first_tables = [
+            "out_eia__monthly_generators",
+            "out_eia923__fuel_receipts_costs",
+            "out_ferc1__yearly_all_plants",
+            "out_eia__yearly_generators",
+        ]
+        if name in first_tables:
+            return first_tables.index(name) - len(first_tables) - 1
+
+        if name.startswith("out"):
+            return 0
+        if name.startswith("core"):
+            return 1
+        if name.startswith("_out"):
+            return 2
+        if name.startswith("_core"):
+            return 3
+
+    sorted_resources = sorted(datapackage.resources, key=sort_resources_by_name)
+
     @app.get("/")
     def home():
         """Just a redirect for search until we come up with proper content."""
@@ -204,21 +228,10 @@ def create_app():
         query = request.args.get("q")
         log.info("search", url=request.path, query=query)
 
-        def sort_resources_by_name(resource):
-            name = resource.name
-            if name.startswith("out"):
-                return 0
-            if name.startswith("core"):
-                return 1
-            if name.startswith("_out"):
-                return 2
-            if name.startswith("_core"):
-                return 3
-
         if query:
             resources = run_search(ix=index, raw_query=query)
         else:
-            resources = sorted(datapackage.resources, key=sort_resources_by_name)
+            resources = sorted_resources
 
         return render_template(template, resources=resources, query=query)
 
